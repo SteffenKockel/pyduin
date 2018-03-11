@@ -14,7 +14,6 @@ WampRouter/.crossbar
 WampRouter/web/css/bootstrap/node_modules/
 WampRouter/web/css/bootstrap/package-lock.json
 #WampRouter/web/css/bootstrap/dist/
-LICENSE
 COPYRIGHT
 *.pyc
 *~
