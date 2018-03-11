@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='pyduin',
-      version='0.1.dev0',
+      version='0.1.dev1',
       description='Extensive arduino abstraction',
       url='http://github.com/SteffenKockel/pyduin',
       author='Steffen Kockel',
