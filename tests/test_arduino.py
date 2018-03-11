@@ -5,7 +5,7 @@ from mock import patch
 import mock
 import sys
 from time import sleep
-from arduino.arduino import Arduino
+from pyduin.arduino import Arduino
 from StringIO import StringIO
 
 
