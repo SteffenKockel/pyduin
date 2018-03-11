@@ -1,4 +1,6 @@
 bin/
+build
+dist
 include/
 /lib/
 local/
@@ -6,6 +8,7 @@ share/
 doc/mcu/arduino_nano/build-nano/
 lib-python/
 lib_pypy/
+man
 site-packages/
 virtualenv_support/
 WampRouter/web/*.html
@@ -14,6 +17,7 @@ WampRouter/.crossbar
 WampRouter/web/css/bootstrap/node_modules/
 WampRouter/web/css/bootstrap/package-lock.json
 #WampRouter/web/css/bootstrap/dist/
+*.egg-info/
 COPYRIGHT
 *.pyc
 *~
