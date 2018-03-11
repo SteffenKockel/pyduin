@@ -32,7 +32,7 @@ class Mode(object):
     def __init__(self, Pin, pin_mode):
         self.Pin = weakref.proxy(Pin)
         self.wanted_mode = pin_mode
-        self._setpinmodetext = """Set pin mode for  pin %d to """ % (self.Pin.pin_id)
+        self._setpinmodetext = """Set pin mode for pin %d to""" % (self.Pin.pin_id)
         self.set_mode(pin_mode)
 
 
@@ -48,7 +48,7 @@ class Mode(object):
         message = "<MO%02d001>" if self.analogOrDigital() == 'digital'  else "<MO%s030>"
         message = message % self.Pin.pin_id
         r = self.Pin.Arduino.send(message)
-        self.Pin.pin_mode='output'
+        self.Pin.pin_mode = 'output'
         return r
 
 
@@ -58,9 +58,8 @@ class Mode(object):
         print """%s INPUT""" % self._setpinmodetext
         message = "<MI%02d000>" if self.analogOrDigital() == 'digital'  else "<MI%s000>"
         message = message % self.Pin.pin_id
-        r = self.Pin.Arduino.send( message)
-        self.Pin.pin_mode='input'
-        return r
+        self.Pin.pin_mode = 'input'
+        return self.Pin.Arduino.send( message)
 
 
     def input_pullup(self):
@@ -68,16 +67,14 @@ class Mode(object):
         print """%s INPUT_PULLUP""" % self._setpinmodetext
         message = "<MP%02d000>" if self.analogOrDigital() == 'digital'  else "<MP%s000>"
         message = message % self.Pin.pin_id
-        r = self.Pin.Arduino.send( message)
-        self.Pin.pin_mode='input_pullup'
-        return r
+        self.Pin.pin_mode = 'input_pullup'
+        return self.Pin.Arduino.send( message)
 
 
     def get_mode(self):
         message = "<mm%02d000>" if self.analogOrDigital() == 'digital'  else "<mm%sd000>"
         message = message % self.Pin.pin_id
-        r = self.Pin.Arduino.send(message)
-        return r
+        return self.Pin.Arduino.send(message)
 
 
     def set_mode(self, mode):
@@ -86,8 +83,7 @@ class Mode(object):
         """
         modesetter = getattr(self, mode, False)
         if modesetter:
-            modesetter()
-            return True
+            return modesetter()
         print "Could not set mode %s for pin %s" % (mode, self.Pin.pin_id)
         return False
 
@@ -128,12 +124,14 @@ class ArduinoPin(object):
 
     def high(self):
         message = "<AD%02d001>" %  self.pin_id
-        self.Arduino.send(message)
+        return self.Arduino.send(message)
+
 
     def low(self):
         message = "<AD%02d000>" % self.pin_id
-        self.Arduino.send(message)
+        return self.Arduino.send(message)
+
 
     def state(self):
-        m = "<aD%02d000>" % self.pin_id
-        self.Arduino.send(messafe)
+        message = "<aD%02d000>" % self.pin_id
+        return self.Arduino.send(message)
