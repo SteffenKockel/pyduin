@@ -1,3 +1,4 @@
+pin_type: arduino
 model: Nano
 Pins:
   Pin2:
