@@ -105,10 +105,15 @@ class TestArduinoFirmwareMethods(unittest.TestCase):
         self.assertEquals(msg, 'Invalid command:\xc3\xb3skdjsj')
 
         # Test for memory consumption
-        self.Arduino.Connection.write('<zz00000>')
+        self.Arduino.get_free_memory()
         msg = self.Arduino.Connection.readline().strip()
         aid,action,free = msg.split("%")
         self.assertEquals('%'.join((aid, action)), '0%free_mem')
+
+        # Test for memory consumption
+        self.Arduino.get_firmware_version()
+        msg = self.Arduino.Connection.readline().strip()
+        self.assertEquals(msg, "0%version%0.1.dev1")
 
 
         # Test for bus....
