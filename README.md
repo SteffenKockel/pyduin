@@ -1,10 +1,10 @@
-# python-arduino (unreleased)
+# pyduin 0.1.dev1
 
 ## What?
 
 A pyhton wrapper for arduino. It consists of two parts
 
-* A python library for arduino, pin, pinmode 
+* A python library for arduino, pin, pinmode
 * An arduino firmware
 
 ## What for?
@@ -13,6 +13,6 @@ To interact seamless with an arduino from within python. Once an arduino has the
 
 ## Is it usable?
 
-Yes it is. But it is neither packaged nor well documented. Working on a release.
+Yes it is. But it is ~~neither packaged~~ nor well documented. Working on a usable release.
 
 
