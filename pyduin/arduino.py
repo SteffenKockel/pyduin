@@ -121,3 +121,16 @@ class Arduino(object): # pylint: disable=too-many-instance-attributes
             return self.Connection.readline().strip()
         return True
 
+
+    def get_firmware_version(self):
+        """
+            Get arduino firmware version
+        """
+        return self.Connection.write("<zv00000>")
+
+
+    def get_free_memory(self):
+        """
+            Return the free memory from the arduino
+        """
+        return self.Connection.write("<zz00000>")
