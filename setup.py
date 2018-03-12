@@ -1,4 +1,5 @@
 from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(name='pyduin',
       version='0.1.dev1',
@@ -7,10 +8,11 @@ setup(name='pyduin',
       author='Steffen Kockel',
       author_email='info@steffen-kockel.de',
       license='GPLv3',
-      packages=['pyduin'],
+      packages=find_packages(),
       zip_safe=False,
-      install_requires=['pyserial','yaml'],
+      install_requires=['pyserial','PyYAML','requests','pyliblzma'],
       python_requires='>2.6, <3',
+      scripts=['pyduin/arduino_cli.py'],
       classifiers=[
 	    # How mature is this project? Common values are
 	    #   3 - Alpha
@@ -35,5 +37,4 @@ setup(name='pyduin',
 	    'Source': 'http://github.com/SteffenKockel/pyduin',
 	    'Tracker': 'http://github.com/SteffenKockel/pyduin/issues',
 	    },
-
       )
