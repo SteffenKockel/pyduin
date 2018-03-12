@@ -1,3 +1,11 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#
+#  arduino_cli.py
+#
+"""
+    Arduino CLI functions and templates
+"""
 import argparse
 import contextlib
 import lzma
@@ -7,6 +15,10 @@ from shutil import copyfile
 import subprocess
 import tarfile
 import yaml
+
+import pyduin.arduino
+
+# Basic user config template
 
 CONFIG_TEMPLATE = """
 workdir: ~/.pyduin
@@ -24,6 +36,8 @@ buddies:
   guinny-pig:
     model: nano
 """
+
+# Makefile template
 
 MAKEFILE_TEMPLATE = """
 IDE_DIR = %(workdir)s/arduino-%(arduino_version)s
@@ -48,15 +62,20 @@ AVRDUDE_ISP_BAUDRATE = 57600
 include %(arduino_makefile)s
 """
 
-import pyduin.arduino
 
 def extract_arduino(srcdir, targetdir):
-    # proudly copied from: https://stackoverflow.com/questions/17217073/how-to-decompress-a-xz-file-which-has-multiple-folders-files-inside-in-a-singl
-    with contextlib.closing(lzma.LZMAFile(srcdir)) as xz:
-        with tarfile.open(fileobj=xz) as f:
-            f.extractall(targetdir)
+    """
+        Extract arduino source tarball. It's actually a .xz file
+    """
+    # proudly copied from: https://stackoverflow.com/questions/17217073/how-to-decompress-a-xz-file-which-has-multiple-folders-files-inside-in-a-singl # pylint: disable=line-too-long
+    with contextlib.closing(lzma.LZMAFile(srcdir)) as xz_file:
+        with tarfile.open(fileobj=xz_file) as source_file:
+            source_file.extractall(targetdir)
 
 def get_arduino(args):
+    """
+        Get an arduino object, open the serial connection and return it
+    """
     arduino = pyduin.arduino.Arduino(tty=args['tty'], baudrate=args['baudrate'],
                                      pinfile=args['pinfile'], model=args['model'])
     arduino.open_serial_connection()
@@ -108,7 +127,8 @@ def get_pyduin_userconfig(args, basic_config):
         if not config.get('buddies'):
             raise pyduin.arduino.ArduinoConfigError("Configfile is missing 'buddies' section")
         if not config['buddies'].get(args.buddy):
-            raise pyduin.arduino.ArduinoConfigError("Buddy '%s' not described in configfile's 'buddies' section" % args.buddy)
+            errmsg = "Buddy '%s' not described in configfile's 'buddies' section" % args.buddy
+            raise pyduin.arduino.ArduinoConfigError(errmsg)
 
     arduino_config = {}
     for opt in ('tty', 'baudrate', 'model', 'pinfile'):
@@ -118,17 +138,17 @@ def get_pyduin_userconfig(args, basic_config):
                 config['buddies'][args.buddy].get(opt, False)) else False
         arduino_config[opt] = _opt
 
-    buddy = args.buddy if args.buddy else 'arduino'
     if not config.get('buddies'):
         config['buddies'] = {}
     config['_arduino_'] = arduino_config
 
     model = config['_arduino_']['model']
-    if not model or model.lower() not in ('nano','mega','uno'):
+    if not model or model.lower() not in ('nano', 'mega', 'uno'):
         raise pyduin.arduino.ArduinoConfigError("Model is undefined or unknown: %s" % model)
 
-    pinfile = os.path.expand(args.pinfile) if (args.pinfile and args.pinfile.startswith('~')) else \
-                args.pinfile if args.pinfile else config['buddies'][args.buddy].get('pinfile')
+    pinfile = os.path.expanduser(args.pinfile) if (args.pinfile and args.pinfile.startswith('~')) \
+                else args.pinfile if args.pinfile \
+                else config['buddies'][args.buddy].get('pinfile')
     # no overrides for the pinfile
     default_pinfile = False if pinfile else True
 
@@ -139,7 +159,7 @@ def get_pyduin_userconfig(args, basic_config):
     # If no pinfile present, attempt to download one from github.
     if not os.path.isfile(pinfile) and default_pinfile:
         print "No pinfile found, trying to download one..."
-        res = requests.get(config['pinfile_src'] % {'model':model})
+        res = requests.get(config['pinfile_src'] % {'model': model})
         if res.status_code == 200:
             with open(pinfile, 'wb') as _pinfile:
                 for chunk in res:
@@ -151,7 +171,7 @@ def get_pyduin_userconfig(args, basic_config):
     return config
 
 
-def update_firmware(config):
+def update_firmware(config): # pylint: disable=too-many-locals
     """
         Update firmware on arduino (cmmi!)
     """
@@ -165,7 +185,7 @@ def update_firmware(config):
         os.mkdir(ide_path)
 
     target = '/'.join((ide_path, '%s.tar.xz' % aversion))
-    full_ide_dir = '/'.join((ide_path,'arduino-%s' % aversion))
+    full_ide_dir = '/'.join((ide_path, 'arduino-%s' % aversion))
     if not os.path.isfile(target) and not os.path.isdir(full_ide_dir):
         url = config['arduino_src'] % {'architecture': config['arduino_architecture'],
                                        'version': config['arduino_version']}
@@ -197,14 +217,14 @@ def update_firmware(config):
     makefile = MAKEFILE_TEMPLATE % makefilevars
     if not os.path.isdir(tmpdir):
         os.mkdir(tmpdir)
-    makefilepath = '/'.join((tmpdir,'Makefile'))
+    makefilepath = '/'.join((tmpdir, 'Makefile'))
     if os.path.exists(makefilepath):
         os.remove(makefilepath)
     with open(makefilepath, 'w') as mkfile:
         mkfile.write(makefile)
     ino = config['ino']
     print "Getting .ino file from %s" % ino
-    inopath = '/'.join((tmpdir,'pyduin.ino'))
+    inopath = '/'.join((tmpdir, 'pyduin.ino'))
     if os.path.exists(inopath):
         os.remove(inopath)
     if ino.startswith("~"):
@@ -213,39 +233,48 @@ def update_firmware(config):
     olddir = os.getcwd()
     os.chdir(tmpdir)
     print subprocess.check_output(['make', 'clean'])
-    print subprocess.check_output(['make','-j4'])
+    print subprocess.check_output(['make', '-j4'])
     print subprocess.check_output(['make', 'upload'])
     os.chdir(olddir)
 
 
-
-
-
 def versions():
+    """
+        Print both firmware and package version
+    """
     pass
 
 
 def main():
+    """
+        Evaluate user arguments and determine task
+    """
     parser = argparse.ArgumentParser(description='Manage arduino from command line.')
     paa = parser.add_argument
     paa('-a', '--arduino-version', default='1.6.5-r5', help="IDE version to download and use")
     paa('-v', '--version', action='store_true', help='Show version info and exit')
-    paa('-I', '--install-dependencies', action='store_true', help='Download and extract arduino IDE')
+    paa('-I', '--install-dependencies', action='store_true',
+        help='Download and extract arduino IDE')
     paa('-t', '--tty', default='/dev/ttyUSB0', help="Arduino tty (default: '/dev/ttyUSB0')")
     paa('-m', '--model', default=False, help="Arduino model (e.g.: Nano, Uno)")
     paa('-b', '--baudrate', default=115200, help="Connection speed (default: 115200)")
-    paa('-p', '--pinfile', default=False, help="Pinfile to use (default: ~/pyduin/pinfiles/<model>.yml")
-    paa('-c', '--configfile', type=file, default=False, help="Alternate configfile (default: ~/.pyduin.yml)")
-    paa('-w', '--workdir', type=file, default=False, help="Alternate workdir path (default: ~/.pyduin)")
-    paa('-B', '--buddy', type=str, default=False, help="Use identifier from configfile for detailed configuration")
-    paa('-f', '--flash', action='store_true', default=False, help="Flash firmware to the arduino (cmmi)")
+    paa('-p', '--pinfile', default=False,
+        help="Pinfile to use (default: ~/pyduin/pinfiles/<model>.yml")
+    paa('-c', '--configfile', type=file, default=False,
+        help="Alternate configfile (default: ~/.pyduin.yml)")
+    paa('-w', '--workdir', type=file, default=False,
+        help="Alternate workdir path (default: ~/.pyduin)")
+    paa('-B', '--buddy', type=str, default=False,
+        help="Use identifier from configfile for detailed configuration")
+    paa('-f', '--flash', action='store_true', default=False,
+        help="Flash firmware to the arduino (cmmi)")
 
     args = parser.parse_args()
 
     # try to open ~/.pyduin
 
     if args.version:
-        version()
+        versions()
 
     basic_config = get_basic_config(args)
     config = get_pyduin_userconfig(args, basic_config)
