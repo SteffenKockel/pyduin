@@ -1,4 +1,3 @@
-from setuptools import setup
 from setuptools import setup, find_packages
 
 setup(name='pyduin',
@@ -13,6 +12,9 @@ setup(name='pyduin',
       install_requires=['pyserial','PyYAML','requests','pyliblzma'],
       python_requires='>2.6, <3',
       scripts=['pyduin/arduino_cli.py'],
+      data_files=[('/usr/share/pyduin/pinfiles',['pinfiles/nano.yml']),
+      			  ('/usr/share/pyduin/ino', ['ino/pyduin.ino'])
+      	],
       classifiers=[
 	    # How mature is this project? Common values are
 	    #   3 - Alpha
