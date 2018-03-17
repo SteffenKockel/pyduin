@@ -25,11 +25,10 @@ import pyduin.arduino
 
 CONFIG_TEMPLATE = """
 workdir: ~/.pyduin
-arduino_makefile: /usr/share/arduino/Arduino.mk
-#arduino_makefile_version: 1.6.0
-#arduino_makefile: https://raw.githubusercontent.com/sudar/Arduino-Makefile/%(version)s/Arduino.mk
+arduino_makefile: ~/.pyduin/makefiles/Arduino-Makefile-%(version)s/Arduino.mk
+arduino_makefile_version: 1.3.1
+arduino_makefile_src: https://github.com/sudar/Arduino-Makefile/archive/%(version)s.tar.gz
 arduino_architecture: linux64 # linux[32|64|arm]
-#arduino_src: https://www.arduino.cc/download_handler.php?f=/arduino-%(version)s-%(architecture)s.tar.xz
 arduino_src: https://downloads.arduino.cc/arduino-%(version)s-%(architecture)s.tar.xz
 pinfile_src: https://raw.githubusercontent.com/SteffenKockel/pyduin/master/pinfiles/%(model)s.yml
 arduino_version: 1.6.5-r5
@@ -43,9 +42,9 @@ libraries:
   MemoryFree:
     source: https://github.com/mpflaga/Arduino-MemoryFree/archive/master.zip
 
-#buddies:
-#  guinny-pig:
-#    model: nano
+buddies:
+  guinny-pig:
+    model: nano
 """
 
 # Makefile template
@@ -124,8 +123,10 @@ def get_arduino(args):
         Get an arduino object, open the serial connection and return it
     """
     arduino = pyduin.arduino.Arduino(tty=args['tty'], baudrate=args['baudrate'],
-                                     pinfile=args['pinfile'], model=args['model'])
+                                 pinfile=args['pinfile'], model=args['model'])
+    setattr(arduino, 'cli_mode', True)
     arduino.open_serial_connection()
+    return arduino
 
 
 def get_basic_config(args):
@@ -250,13 +251,28 @@ def update_firmware(args, config): # pylint: disable=too-many-locals
         print "Found arduino IDE in %s" % full_ide_dir
     tmpdir = '/tmp/.pyduin'
 
+    # Check, if Arduino.mk exists in the correct version. If not
+    # download it and set a symlink
+    mk_dir = '/'.join((config['workdir'], 'makefiles'))
+    mk_version = config['arduino_makefile_version']
+    mk_dir_full = '/'.join((mk_dir, 'Arduino-Makefile-%s' % mk_version))
+    if not os.path.isdir(mk_dir):
+        os.mkdir(mk_dir)
+
+    if not os.path.isdir(mk_dir_full):
+        mk_tar = '/'.join((mk_dir, 'Arduino-Makefile-%s.tar.gz' % mk_version ))
+        url = config['arduino_makefile_src'] % {'version': mk_version}
+        if not os.path.isfile(mk_tar):
+            get_file(url, mk_tar)
+        extract_file(mk_tar, mk_dir)
+
     # Generat a Makefile from template above.
     print "Compiling makefile."
     makefilevars = {'tty': config['_arduino_']['tty'],
                     'workdir': full_ide_dir,
                     'arduino_version': config['arduino_version'],
                     'ide_dir': '/'.join((full_ide_dir, 'arduino-%s' % config['arduino_version'])),
-                    'arduino_makefile': config['arduino_makefile'],
+                    'arduino_makefile': config['arduino_makefile'] % {'version': mk_version},
                   }
     makefile = MAKEFILE_TEMPLATE % makefilevars
     # Create tmp dir if needed and place Makefile in tmp dir
@@ -329,23 +345,26 @@ def main():
     """
     parser = argparse.ArgumentParser(description='Manage arduino from command line.')
     paa = parser.add_argument
-    paa('-a', '--arduino-version', default='1.6.5-r5', help="IDE version to download and use")
-    paa('-v', '--version', action='store_true', help='Show version info and exit')
-    paa('-i', '--ino', default=False,
-        help='.ino file to build and uplad.')
-    paa('-t', '--tty', default='/dev/ttyUSB0', help="Arduino tty (default: '/dev/ttyUSB0')")
-    paa('-m', '--model', default=False, help="Arduino model (e.g.: Nano, Uno)")
+    paa('-a', '--action', default=False, type=str, help="Action, e.g 'on','off'")
+    paa('-A', '--arduino-version', default='1.6.5-r5', help="IDE version to download and use")
     paa('-b', '--baudrate', default=115200, help="Connection speed (default: 115200)")
-    paa('-p', '--pinfile', default=False,
-        help="Pinfile to use (default: ~/pyduin/pinfiles/<model>.yml")
-    paa('-c', '--configfile', type=file, default=False,
-        help="Alternate configfile (default: ~/.pyduin.yml)")
-    paa('-w', '--workdir', type=file, default=False,
-        help="Alternate workdir path (default: ~/.pyduin)")
     paa('-B', '--buddy', type=str, default=False,
         help="Use identifier from configfile for detailed configuration")
+    paa('-c', '--configfile', type=file, default=False,
+        help="Alternate configfile (default: ~/.pyduin.yml)")
     paa('-f', '--flash', action='store_true', default=False,
         help="Flash firmware to the arduino (cmmi)")
+    paa('-i', '--ino', default=False,
+        help='.ino file to build and uplad.')
+    paa('-m', '--model', default=False, help="Arduino model (e.g.: Nano, Uno)")
+    paa('-p', '--pin', default=False, type=int, help="The pin to do action x with.")
+    paa('-P', '--pinfile', default=False,
+        help="Pinfile to use (default: ~/pyduin/pinfiles/<model>.yml")
+    paa('-t', '--tty', default='/dev/ttyUSB0', help="Arduino tty (default: '/dev/ttyUSB0')")
+    paa('-v', '--version', action='store_true', help='Show version info and exit')
+    paa('-w', '--workdir', type=file, default=False,
+        help="Alternate workdir path (default: ~/.pyduin)")
+
 
     args = parser.parse_args()
 
@@ -357,15 +376,26 @@ def main():
     try:
         basic_config = get_basic_config(args)
         config = get_pyduin_userconfig(args, basic_config)
-
-        if args.flash:
-            update_firmware(args, config)
-            return
     except pyduin.arduino.ArduinoConfigError, error:
         print colored(error, 'red')
         sys.exit(1)
 
-    get_arduino(config['_arduino_'])
+    if args.flash:
+        update_firmware(args, config)
+        sys.exit(0)
+
+    Arduino = get_arduino(config['_arduino_'])
+    if args.action and args.action == 'free':
+        print Arduino.get_free_memory()
+        sys.exit(0)
+    if args.action and args.action == 'version':
+        print Arduino.get_firmware_version()
+        sys.exit(0)
+    if args.action and args.action in ('high','low','state'):
+        if args.pin in Arduino.Pins.keys():
+            pin = Arduino.Pins[args.pin]
+            getattr(pin, args.action)()
+
     #print args
 
 if __name__ == '__main__':
