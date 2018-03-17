@@ -43,7 +43,7 @@ class Arduino(object): # pylint: disable=too-many-instance-attributes
         self.baudrate = baudrate if baudrate else config.get('baudrate', False)
         self._pinfile = pinfile if pinfile else config.get('pinfile', False)
         self.ready = False
-        self.return_arduino_answers = False
+        self.cli_mode = False
 
         if not self.model or not self.tty or not self.baudrate or not self._pinfile:
             mandatory = ('model', 'tty', 'baudrate', '_pinfile')
@@ -60,10 +60,10 @@ class Arduino(object): # pylint: disable=too-many-instance-attributes
             according to pinfile.
         """
         try:
-            self.Connection = serial.Serial(self.tty, self.baudrate, timeout=3) # pylint: disable=invalid-name
-            time.sleep(2)
+            self.Connection = serial.Serial(self.tty, self.baudrate, timeout=10) # pylint: disable=invalid-name
+            time.sleep(1.5)
             self.setup_pins()
-            #self.ready = True
+            self.ready = True
             return True
         except serial.SerialException:
             print "Could not open Serial connection on %s" % (self.tty)
@@ -75,7 +75,6 @@ class Arduino(object): # pylint: disable=too-many-instance-attributes
         """
             Setup pins according to pinfile.
         """
-
         self.analog_pins = []
         self.digital_pins = []
         self.pwm_cap_pins = []
@@ -117,8 +116,11 @@ class Arduino(object): # pylint: disable=too-many-instance-attributes
             Send a serial message to the arduino.
         """
         self.Connection.write(message)
-        if self.return_arduino_answers:
-            return self.Connection.readline().strip()
+        if self.cli_mode == True:
+            msg = self.Connection.readline().strip()
+            if msg == "Boot complete":
+                msg = self.Connection.readline().strip()
+            return msg
         return True
 
 
@@ -126,11 +128,17 @@ class Arduino(object): # pylint: disable=too-many-instance-attributes
         """
             Get arduino firmware version
         """
-        return self.Connection.write("<zv00000>")
+        res = self.send("<zv00000>")
+        if self.cli_mode:
+            return res.split("%")[-1]
+        return True
 
 
     def get_free_memory(self):
         """
             Return the free memory from the arduino
         """
-        return self.Connection.write("<zz00000>")
+        res = self.send("<zz00000>")
+        if self.cli_mode:
+            return res.split("%")[-1]
+        return res
