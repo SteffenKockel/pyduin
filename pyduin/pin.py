@@ -107,7 +107,7 @@ class Mode(object):
         """
             Sets the pin mode for this Pin
         """
-        modesetter = getattr(self, mode, False)
+        modesetter = getattr(self, mode.lower(), False)
         if modesetter:
             return modesetter()
         print "Could not set mode %s for pin %s" % (mode, self.Pin.pin_id)
