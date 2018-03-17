@@ -10,6 +10,7 @@ import argparse
 import contextlib
 import lzma
 import os
+import re
 import requests
 from shutil import copyfile, move
 import subprocess
@@ -25,7 +26,9 @@ import pyduin.arduino
 
 CONFIG_TEMPLATE = """
 workdir: ~/.pyduin
+#arduino_makefile: /usr/share/arduino/Arduino.mk
 arduino_makefile: ~/.pyduin/makefiles/Arduino-Makefile-%(version)s/Arduino.mk
+#arduino_makefile_version: 1.6.0
 arduino_makefile_version: 1.3.1
 arduino_makefile_src: https://github.com/sudar/Arduino-Makefile/archive/%(version)s.tar.gz
 arduino_architecture: linux64 # linux[32|64|arm]
@@ -45,14 +48,18 @@ libraries:
 buddies:
   guinny-pig:
     model: nano
+    flavour: atmega328
+  guinnie-pig2:
+    model: nano
+    flavour: atmega168
 """
 
 # Makefile template
 
 MAKEFILE_TEMPLATE = """
 IDE_DIR = %(workdir)s/arduino-%(arduino_version)s
-ARDUINO_SKETCHBOOK = %(workdir)s/arduino-sketches
-USER_LIB_PATH = %(workdir)s/arduino-libraries
+ARDUINO_SKETCHBOOK = %(workdir)s/examples
+USER_LIB_PATH = %(workdir)s/user-libraries
 ARDUINO_HEADER = %(ide_dir)s/hardware/arduino/avr/cores/arduino/Arduino.h
 ARDUINO_PORT = %(tty)s
 ARDUINO_DIR  = %(ide_dir)s
@@ -62,19 +69,19 @@ ALTERNATE_CORE_PATH = %(ide_dir)s/hardware/arduino/avr/cores/arduino
 ARDUINO_VAR_PATH = %(ide_dir)s/hardware/arduino/avr/variants
 BOOTLOADER_PARENT = %(ide_dir)s/hardware/arduino/avr/bootloaders
 #ARDUINO_LIBS = Ethernet Ethernet/utility SPI
-BOARD_TAG  = nano
-BOARD_SUB = atmega328
-MCU = atmega328p
+BOARD_TAG  = %(model)s
+BOARD_SUB = %(board_sub)s
+MCU = %(mcu)s
 AVRDUDE = %(ide_dir)s/hardware/tools/avr/bin/avrdude
 AVRDUDE_CONF = %(ide_dir)s/hardware/tools/avr/etc/avrdude.conf
-AVRDUDE_ARD_BAUDRATE = 57600
-AVRDUDE_ISP_BAUDRATE = 57600
+AVRDUDE_ARD_BAUDRATE = %(baudrate)s
+AVRDUDE_ISP_BAUDRATE = %(baudrate)s
 include %(arduino_makefile)s
 """
 
 
 def get_file(source, target):
-    print "Getting %s from %s" % (source, target)
+    print colored("Getting %s from %s" % (target, source), 'blue')
     source = os.expanduser(source) if source.startswith('~') else source
     if source.startswith('http'):
         res = requests.get(source)
@@ -115,7 +122,7 @@ def extract_file(src_file, targetdir, rebase=False):
             gz_file.extractall(path=targetdir)
 
     if rebase:
-        move(path, rebase)
+        move('/'.join((targetdir, path)), rebase)
 
 
 def get_arduino(args):
@@ -169,7 +176,7 @@ def get_basic_config(args):
         print "IDE dir does not exist: '%s'. Creating" % ide_dir
         os.mkdir(ide_dir)
     basic_config['ide_dir'] = ide_dir
-    basic_config['full_ide_dir'] = '/'.join((ide_dir, basic_config['arduino_version']))
+    basic_config['full_ide_dir'] = '/'.join((ide_dir, 'arduino-%s' % basic_config['arduino_version']))
 
     return basic_config
 
@@ -222,40 +229,65 @@ def get_pyduin_userconfig(args, basic_config):
     return config
 
 
-def update_firmware(args, config): # pylint: disable=too-many-locals
+def check_ide_and_libs(args, config): # pylint: disable=too-many-locals
     """
         Update firmware on arduino (cmmi!)
     """
+    # Check arduino IDE presence. If the desired version does
+    # not exist locally, it will get downloaded and ectracted
     aversion = config['arduino_version']
+    ide_dir = config['ide_dir']
     full_ide_dir = config['full_ide_dir']
-    print "Checking for arduino IDE %s in %s" % (aversion, full_ide_dir)
+    print colored("Checking for arduino IDE %s in %s" % (aversion, full_ide_dir), 'yellow')
     if not os.path.isdir(full_ide_dir):
-        print "Arduino ide version %s not present in %s. Downloading." %\
-            (aversion, full_ide_dir)
+        msg = "Arduino ide version %s not present in %s. Downloading." % (aversion, full_ide_dir)
+        print colored(msg, 'yellow')
 
     target = '/'.join((config['ide_dir'], '%s.tar.xz' % aversion))
     if not os.path.isfile(target) and not os.path.isdir(full_ide_dir):
         url = config['arduino_src'] % {'architecture': config['arduino_architecture'],
                                        'version': config['arduino_version']}
-        print "Attempting to download arduin IDE from %s" % url
+        print colored("Attempting to download arduin IDE from %s" % url, 'green')
         get_file(url, target)
-        # errmsg = "Cannot download arduino IDE version %s from %s." %\
-        #         (aversion, url)
-        #   raise pyduin.arduino.ArduinoConfigError(errmsg)
 
-    elif os.path.isfile(target) and not os.path.isdir(full_ide_dir):
-        print "Extracting archive.."
+    if os.path.isfile(target) and not os.path.isdir(full_ide_dir):
+        print colored("Extracting archive %s to %s" % (target, full_ide_dir), 'yellow')
         print target, full_ide_dir
-        extract_file(target, full_ide_dir)
+        extract_file(target, ide_dir)
     else:
-        print "Found arduino IDE in %s" % full_ide_dir
-    tmpdir = '/tmp/.pyduin'
+        print colored("Found arduino IDE in %s" % full_ide_dir, 'green')
+
+    # Get libs as defined in .pyduin
+    libdir = '/'.join((config['full_ide_dir'], 'user-libraries'))
+
+    if not os.path.isdir(libdir):
+        os.mkdir(libdir)
+
+    for library, libconf in config['libraries'].iteritems():
+        _libdir = '/'.join((libdir, library))
+        #print colored("Checking for library %s" % _libdir, 'yellow')
+        if not os.path.isdir(_libdir):
+            source = libconf.get('source', False)
+            if not source:
+                errmsg = "No source defined for lib %s and source not found in %s" %\
+                        (library, libdir)
+                raise pyduin.arduino.ArduinoConfigError(errmsg)
+
+            target = '/'.join((libdir, os.path.basename(source)))
+            if not os.path.isfile(target):
+                get_file(source, target)
+            # finally, extract the file
+            extract_file(target, libdir, rebase='/'.join((libdir,library)))
+        else:
+            print colored("Found library %s" % _libdir, 'green')
 
     # Check, if Arduino.mk exists in the correct version. If not
-    # download it and set a symlink
+    # download and extract it.
+
     mk_dir = '/'.join((config['workdir'], 'makefiles'))
     mk_version = config['arduino_makefile_version']
     mk_dir_full = '/'.join((mk_dir, 'Arduino-Makefile-%s' % mk_version))
+    #print colored("Checking for %s" % mk_dir_full, 'yellow')
     if not os.path.isdir(mk_dir):
         os.mkdir(mk_dir)
 
@@ -265,68 +297,90 @@ def update_firmware(args, config): # pylint: disable=too-many-locals
         if not os.path.isfile(mk_tar):
             get_file(url, mk_tar)
         extract_file(mk_tar, mk_dir)
+    else:
+        print colored("Found %s" % mk_dir_full, 'green')
 
+def update_firmware(args, config): # pylint: disable=too-many-locals
+    """
+        Update firmware on arduino (cmmi!)
+    """
+    tmpdir = '/tmp/.pyduin'
+
+    # Get the boards.txt. This file holds the mcu and board definition.
+    flavour = args.flavour if args.flavour else config['buddies'][args.buddy]['flavour'] if \
+        config.get('buddies') and args.buddy in config['buddies'].keys() and \
+        config['buddies'][args.buddy].get('flavour') and args.buddy else False
+    if not flavour:
+        errmsg = "A flavour needs to defined with the -F option or in ~/.pyduin.yml"
+        raise pyduin.arduino.ArduinoConfigError(errmsg)
+
+    model = config['_arduino_']['model']
+    full_ide_dir = config['full_ide_dir']
+    mculib = "%s/hardware/arduino/avr/boards.txt" % full_ide_dir
+    with open(mculib) as _mculib:
+        mculib = _mculib.readlines()
+
+    mcu = [x for x in mculib if re.search("^%s.*.%s.*mcu=" % (model, flavour), x)]
+    if not mcu or len(mcu) != 1:
+        errmsg = "Cannot find mcu correspondig to flavour %s and model %s in boards.txt" % (flavour, model)
+        raise pyduin.arduino.ArduinoConfigError(errmsg)
+
+    mcu = mcu[0].split('=')[1].strip()
+
+    isp_baudrate = [x for x in mculib if re.search("^%s.*.%s.*upload.speed=" % (model, flavour), x)]
+    if not isp_baudrate or len(isp_baudrate) != 1:
+        errmsg = "Cannot determine upload baudrate for flavour %s and model %s from boards.txt" % (flavour, model)
+        raise pyduin.arduino.ArduinoConfigError(errmsg)
+    baudrate = isp_baudrate[0].split('=')[1].strip()
     # Generat a Makefile from template above.
-    print "Compiling makefile."
     makefilevars = {'tty': config['_arduino_']['tty'],
                     'workdir': full_ide_dir,
                     'arduino_version': config['arduino_version'],
-                    'ide_dir': '/'.join((full_ide_dir, 'arduino-%s' % config['arduino_version'])),
-                    'arduino_makefile': config['arduino_makefile'] % {'version': mk_version},
+                    'ide_dir': full_ide_dir,
+                    'arduino_makefile': config['arduino_makefile'] % {'version': config['arduino_makefile_version']},
+                    'mcu': mcu,
+                    'board_sub': flavour,
+                    'model': model,
+                    'baudrate': baudrate
                   }
     makefile = MAKEFILE_TEMPLATE % makefilevars
     # Create tmp dir if needed and place Makefile in tmp dir
     if not os.path.isdir(tmpdir):
         os.mkdir(tmpdir)
     makefilepath = '/'.join((tmpdir, 'Makefile'))
+    print colored("Writing makefile to %s" % makefilepath, 'green')
     if os.path.exists(makefilepath):
         os.remove(makefilepath)
     with open(makefilepath, 'w') as mkfile:
         mkfile.write(makefile)
 
     # Determine, which .ino file to use
-    model = config['_arduino_']['model']
     ino = args.ino if args.ino else config.get('ino', '/usr/share/pyduin/ino/pyduin.ino')
-    print "Getting .ino file from %s" % ino
-    if not ino or not os.path.isfile(ino):
+    print colored("Getting .ino file from %s" % ino, 'green')
+    ino = os.path.expanduser(ino) if ino.startswith('~') else \
+        '/'.join((os.getcwd(), ino)) if not ino.startswith('/') else ino
+
+    if not os.path.isfile(ino) or not ino:
         errmsg = "Cannot find .ino in %s. Giving up." % ino
         raise pyduin.arduino.ArduinoConfigError(errmsg)
 
     # Get the actual .ino file aka 'sketch' to compile and upload
-    print "Getting .ino file from %s" % ino
     inotmp = '/'.join((tmpdir, 'pyduin.ino'))
     if os.path.exists(inotmp):
         os.remove(inotmp)
     get_file(ino, inotmp)
 
+    if not os.path.exists(config['_arduino_']['tty']):
+        errmsg = "%s not found. Connected?" % config['_arduino_']['tty']
+        raise pyduin.arduino.ArduinoConfigError(errmsg)
+
     olddir = os.getcwd()
-
-    # Get libs
-    libdir = '/'.join((config['full_ide_dir'], 'arduino-libraries'))
-    if not os.path.isdir(libdir):
-        os.mkdir(libdir)
-    os.chdir(libdir)
-    for library, libconf in config['libraries'].iteritems():
-        _libdir = '/'.join((libdir, library))
-        if not os.path.isdir(_libdir):
-            source = libconf.get('source', False)
-            if not source:
-                errmsg = "No source defined for lib %s and source not found in %s" %\
-                        (library, libdir)
-                raise pyduin.arduino.ArduinoConfigError(errmsg)
-            target = '/'.join((libdir, os.path.basename(source)))
-            if not os.path.isfile(target):
-                print "Downloading library %s from %s" % (library, source)
-                get_file(source, target)
-            # finally, extract the file
-            extract_file(target, libdir, rebase=library)
-
     os.chdir(tmpdir)
-    print "Cleaning up"
+    print colored("Running make clean", 'green')
     subprocess.check_output(['make', 'clean'])
-    print "Compiling sketch"
+    print colored("Running make", 'green')
     subprocess.check_output(['make', '-j4'])
-    print "Flashing arduino"
+    print colored("Running make upload", 'green')
     subprocess.check_output(['make', 'upload'])
     print colored("All Done!", "green")
     os.chdir(olddir)
@@ -345,7 +399,7 @@ def main():
     """
     parser = argparse.ArgumentParser(description='Manage arduino from command line.')
     paa = parser.add_argument
-    paa('-a', '--action', default=False, type=str, help="Action, e.g 'on','off'")
+    paa('-a', '--action', default=False, type=str, help="Action, e.g 'high','low'")
     paa('-A', '--arduino-version', default='1.6.5-r5', help="IDE version to download and use")
     paa('-b', '--baudrate', default=115200, help="Connection speed (default: 115200)")
     paa('-B', '--buddy', type=str, default=False,
@@ -354,15 +408,19 @@ def main():
         help="Alternate configfile (default: ~/.pyduin.yml)")
     paa('-f', '--flash', action='store_true', default=False,
         help="Flash firmware to the arduino (cmmi)")
+    paa('-D', '--install-dependencies', action='store_true',
+        help='Download and install dependencies according to ~/.pyduin.yml')
+    paa('-F', '--flavour', default=False, type=str,
+        help="Model Flavour. E.g atmega328, atmega168")
     paa('-i', '--ino', default=False,
         help='.ino file to build and uplad.')
     paa('-m', '--model', default=False, help="Arduino model (e.g.: Nano, Uno)")
     paa('-p', '--pin', default=False, type=int, help="The pin to do action x with.")
     paa('-P', '--pinfile', default=False,
-        help="Pinfile to use (default: ~/pyduin/pinfiles/<model>.yml")
+        help="Pinfile to use (default: ~/.pyduin/pinfiles/<model>.yml")
     paa('-t', '--tty', default='/dev/ttyUSB0', help="Arduino tty (default: '/dev/ttyUSB0')")
     paa('-v', '--version', action='store_true', help='Show version info and exit')
-    paa('-w', '--workdir', type=file, default=False,
+    paa('-w', '--workdir', type=str, default=False,
         help="Alternate workdir path (default: ~/.pyduin)")
 
 
@@ -373,16 +431,31 @@ def main():
     if args.version:
         versions()
 
+    if args.install_dependencies:
+        try:
+            basic_config = get_basic_config(args)
+            check_ide_and_libs(args, basic_config)
+        except pyduin.arduino.ArduinoConfigError, error:
+            print colored(error, 'red')
+        sys.exit(0)
+
+    elif args.flash:
+        try:
+            basic_config = get_basic_config(args)
+            config = get_pyduin_userconfig(args, basic_config)
+            check_ide_and_libs(args, config)
+            update_firmware(args, config)
+        except pyduin.arduino.ArduinoConfigError, error:
+            print colored(error, 'red')
+        sys.exit(0)
+
+
     try:
         basic_config = get_basic_config(args)
         config = get_pyduin_userconfig(args, basic_config)
     except pyduin.arduino.ArduinoConfigError, error:
         print colored(error, 'red')
         sys.exit(1)
-
-    if args.flash:
-        update_firmware(args, config)
-        sys.exit(0)
 
     Arduino = get_arduino(config['_arduino_'])
     if args.action and args.action == 'free':
