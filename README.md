@@ -34,7 +34,7 @@ Arduino = arduino.Arduino(model='nano', tty='/dev/ttyUSB0', pinfile='~/.pyduin/p
 firmware_version = Arduino.get_firmware_version()
 Arduino.Pins[13].set_mode('OUTPUT')
 Arduino.Pins[13].high()
-free_mem = Arduino.get_free_mempry()
+free_mem = Arduino.get_free_memory()
 ```
 
 ### Using the CLI
