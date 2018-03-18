@@ -12,8 +12,8 @@ setup(name='pyduin',
       install_requires=['pyserial','PyYAML','requests','pyliblzma','termcolor'],
       python_requires='>2.6, <3',
       scripts=['pyduin/arduino_cli.py'],
-      data_files=[('/usr/share/pyduin/pinfiles',['pinfiles/nano.yml']),
-      			  ('/usr/share/pyduin/ino', ['ino/pyduin.ino'])
+      data_files=[('pinfiles',['pinfiles/nano.yml']),
+      			  ('ino', ['ino/pyduin.ino'])
       	],
       classifiers=[
 	    # How mature is this project? Common values are
