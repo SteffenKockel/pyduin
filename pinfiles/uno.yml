@@ -1,0 +1,59 @@
+pin_type: arduino
+model: Uno
+Pins:
+  Pin2:
+    physical_id: 2
+  Pin3:
+    physical_id: 3
+    pin_mode: output
+    pwm_capable: True
+  Pin4:
+    physical_id: 4
+    pin_mode: output
+  Pin5:
+    physical_id: 5
+    pwm_capable: True
+  Pin6:
+    physical_id: 6
+    pwm_capable: True
+  Pin7:
+    physical_id: 7
+  Pin8:
+    physical_id: 8
+  Pin9:
+    physical_id: 9
+    pwm_capable: True
+  Pin10:
+    physical_id: 10
+    pwm_capable: True
+  Pin11:
+    physical_id: 11
+    pwm_capable: True
+  Pin12:
+    physical_id: 12
+  Pin13:
+    physical_id: 13
+    pin_mode: output
+  Pin14:
+    physical_id: 14
+    pin_mode: input
+    pin_type: analog
+  Pin15:
+    physical_id: 15
+    mode: input
+    pin_type: analog
+  Pin16:
+    physical_id: 16
+    pin_mode: input
+    pin_type: analog
+  Pin17:
+    physical_id: 17
+    pin_mode: input
+    pin_type: analog
+  Pin18:
+    physical_id: 18
+    mode: input
+    pin_type: analog
+  Pin19:
+    physical_id: 19
+    pin_type: analog

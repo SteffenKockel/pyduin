@@ -9,10 +9,10 @@ setup(name='pyduin',
       license='GPLv3',
       packages=find_packages(),
       zip_safe=False,
-      install_requires=['pyserial','PyYAML','requests','pyliblzma','termcolor'],
+      install_requires=['pyserial', 'PyYAML', 'requests', 'pyliblzma', 'termcolor'],
       python_requires='>2.6, <3',
       scripts=['pyduin/arduino_cli.py'],
-      data_files=[('pinfiles',['pinfiles/nano.yml']),
+      data_files=[('pinfiles',['pinfiles/nano.yml', 'pinfiles/uno.yml']),
       			  ('ino', ['ino/pyduin.ino'])
       	],
       classifiers=[
