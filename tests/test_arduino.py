@@ -113,7 +113,7 @@ class TestArduinoFirmwareMethods(unittest.TestCase):
         # Test for memory consumption
         self.Arduino.get_firmware_version()
         msg = self.Arduino.Connection.readline().strip()
-        self.assertEquals(msg, "0%version%0.2")
+        self.assertEquals(msg, "0%version%0.2.1")
 
 
         # Test for bus....

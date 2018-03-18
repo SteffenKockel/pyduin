@@ -1,4 +1,4 @@
-# pyduin 0.2
+# pyduin 0.2.1
 
 ## What?
 
