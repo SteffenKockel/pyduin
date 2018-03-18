@@ -13,7 +13,7 @@ To interact seamless with an arduino from within python. Once an arduino has the
 
 ## Is it usable?
 
-Yes it is. But it is ~~neither packaged~~ nor well documented. Working on a usable release.
+Yes it is. I mostly use it to flash nanos.
 
 ## How
 
@@ -39,28 +39,44 @@ free_mem = Arduino.get_free_memory()
 
 ### Using the CLI
 
-Whenever the CLI is invoked, it checks for a user config dir `~/.pyduin` and a user config file in `~/.pyduin.yml`. If the directory is not present, it will get created. If the configfile does not exist, it will be created. The configuration file then can be used as a starting point. Especially the buddy-list may be an interesting feature. It is intended to arduino(s) or classes of devices to make interaction with the target device even more seamless.
-
-To connect to an arduino, it is necessary to specify the `baudrate`, `tty`, `model` and `pinfile` arguments. Since there are some defaults set (`--help`), only differing arguments need to be specified. The following call shows the default values for `baudrate` and `tty` ommited, but `pinfile` and `model` present. This means that implicitly `/dev/ttyUSB0` will be used and the connection speed will be `115200` baud.
+The first operation to use would be to install the needed dependencies in `~/.pyduin/`. The following command creates `~/.pyduin.yml` if it does not exist, downloads the arduino IDE defined in `~/pyduin.yml`, and also downloads the librariese defined in `~./pyduin.yml`.
 
 ```
-arduino_cli.py --model nano --pinfile ~/test-pinfile.yml
+arduino_cli.py --install-dependencies
 ```
 
-The buddy-list allows to define some buddies. Here the same defaults apply and only differences need to be specified.
+To connect to an arduino, it is necessary to specify the `baudrate`, `tty`, `model` and `pinfile` arguments. Since there are some defaults set (see: `arduino_cli.py --help`), only differing arguments need to be specified. The following call shows the default values for `baudrate` and `tty` ommited, but `pinfile` and `model` present. This means that implicitly `/dev/ttyUSB0` will be used and the connection speed will be `115200` baud.
+
+```
+arduino_cli.py --model nano --pin 4 --action high
+```
+
+#### The buddy list
+
+The buddy-list feature allows one to define buddies. Here the same defaults apply as when invoked from command line. Thus only differences need to be specified.
 
 ```yaml
 buddies:
   uber:
+    model: nano
+    flavour: atmega328
     tty: /dev/uber
     pinfile: ~/.pyduin/uber_pins.yml
     ino: ~/arduino-sketchbook/uber/uber.ino
 ```
-Then the buddies can be addressed with the `-B` option. The following example would build the `.ino` file from the example above and flash it to the arduino.
+
+#### Flashing firmware to the arduino
+
+Then the buddies can be addressed with the `-B` option. The following example would build the `.ino` file from the example above and flash it to the arduino. **Note: `model` and `flavour` are mandatory for --flash**
 ```
 arduino_cli.py --buddy uber --flash
 ```
-If the `ino` option is ommitted, then the project firmware gets applied. The script downloads an arduino IDE, extracts it to `~/.pyduin/ide/VERSION/arduino-VERSION/` and uses this ide to compile and upload the file to the arduino. A `Makefile` and the `ino` file get copied to `/tmp/.pyduin` and then `make` is run via subrocess.
+It can also be done without the buddy list.
+```
+arduino_cli.py --model nano --flavour atmega328 --flash --ino ~/inodev/devel.ino
+```
+
+If the `ino` option is ommitted, then the project firmware gets applied.
 
 #### Control the arduinos pins
 
