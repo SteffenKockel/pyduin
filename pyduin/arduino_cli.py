@@ -146,7 +146,7 @@ def get_basic_config(args):
         configfile = os.path.expanduser(configfile)
 
     if not os.path.isfile(configfile):
-        print("Writing default config file to %s " % configfile)
+        print colored("Writing default config file to %s " % configfile, 'blue')
         with open(configfile, 'w') as _configfile:
             _configfile.write(CONFIG_TEMPLATE)
 
@@ -160,20 +160,20 @@ def get_basic_config(args):
     basic_config['workdir'] = workdir
 
     if not os.path.isdir(workdir):
-        print "Wordir does not exist '%s'. Creating" % workdir
+        print colored("Wordir does not exist '%s'. Creating" % workdir, 'blue')
         os.mkdir(workdir)
 
     # Get pinfile
     pinfiledir = '/'.join((workdir, 'pinfiles'))
     if not os.path.isdir(pinfiledir):
-        print "Pinfile dir does not exist '%s'. Creating" % pinfiledir
+        print colored("Pinfile dir does not exist '%s'. Creating" % pinfiledir, 'blue')
         os.mkdir(pinfiledir)
     basic_config['pinfiledir'] = pinfiledir
 
     # Calculate IDE dir
     ide_dir = '/'.join((workdir, 'ide'))
     if not os.path.isdir(ide_dir):
-        print "IDE dir does not exist: '%s'. Creating" % ide_dir
+        print colored("IDE dir does not exist: '%s'. Creating" % ide_dir, 'blue')
         os.mkdir(ide_dir)
     basic_config['ide_dir'] = ide_dir
     basic_config['full_ide_dir'] = '/'.join((ide_dir, 'arduino-%s' % basic_config['arduino_version']))
@@ -221,7 +221,6 @@ def get_pyduin_userconfig(args, basic_config):
 
     # If no pinfile present, attempt to download one from github.
     if not os.path.isfile(pinfile) and default_pinfile:
-        print "No pinfile found, trying to download one..."
         get_file(config['pinfile_src'] % {'model': model}, pinfile)
         # errmsg = "Cannot find or download pinfile for model '%s'. Supported?" % model
         # raise pyduin.arduino.ArduinoConfigError(errmsg)
@@ -238,7 +237,7 @@ def check_ide_and_libs(args, config): # pylint: disable=too-many-locals
     aversion = config['arduino_version']
     ide_dir = config['ide_dir']
     full_ide_dir = config['full_ide_dir']
-    print colored("Checking for arduino IDE %s in %s" % (aversion, full_ide_dir), 'yellow')
+    # print colored("Checking for arduino IDE %s in %s" % (aversion, full_ide_dir), 'yellow')
     if not os.path.isdir(full_ide_dir):
         msg = "Arduino ide version %s not present in %s. Downloading." % (aversion, full_ide_dir)
         print colored(msg, 'yellow')
@@ -252,7 +251,6 @@ def check_ide_and_libs(args, config): # pylint: disable=too-many-locals
 
     if os.path.isfile(target) and not os.path.isdir(full_ide_dir):
         print colored("Extracting archive %s to %s" % (target, full_ide_dir), 'yellow')
-        print target, full_ide_dir
         extract_file(target, ide_dir)
     else:
         print colored("Found arduino IDE in %s" % full_ide_dir, 'green')
@@ -348,7 +346,7 @@ def update_firmware(args, config): # pylint: disable=too-many-locals
     if not os.path.isdir(tmpdir):
         os.mkdir(tmpdir)
     makefilepath = '/'.join((tmpdir, 'Makefile'))
-    print colored("Writing makefile to %s" % makefilepath, 'green')
+    print colored("Writing makefile to %s" % makefilepath, 'blue')
     if os.path.exists(makefilepath):
         os.remove(makefilepath)
     with open(makefilepath, 'w') as mkfile:
@@ -356,7 +354,6 @@ def update_firmware(args, config): # pylint: disable=too-many-locals
 
     # Determine, which .ino file to use
     ino = args.ino if args.ino else config.get('ino', '/usr/share/pyduin/ino/pyduin.ino')
-    print colored("Getting .ino file from %s" % ino, 'green')
     ino = os.path.expanduser(ino) if ino.startswith('~') else \
         '/'.join((os.getcwd(), ino)) if not ino.startswith('/') else ino
 
