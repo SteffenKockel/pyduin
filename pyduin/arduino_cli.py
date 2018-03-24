@@ -226,6 +226,10 @@ def get_pyduin_userconfig(args, basic_config):
 
     return config
 
+def _get_proxy_tty_name(config):
+    tty = os.path.basename(config['_arduino_']['tty'])
+    proxy_tty = os.path.sep.join((config['workdir'], '%s.tty' % tty))
+    return proxy_tty
 
 
 def get_arduino(args, config):
@@ -236,16 +240,14 @@ def get_arduino(args, config):
         on any reconnect in for command line operations.
     """
     aconfig = config['_arduino_']
-    if config['use_socat']:
+    if config['use_socat'] and not args.flash:
         socat = find_executable('socat')
         if not socat:
             errmsg = "Cannot find 'socat' in PATH, but use is configured in ~/.pyduin.yml"
             raise ArduinoConfigError(errmsg)
-        proxy_tty = os.path.sep.join((config['workdir'],
-                                      '%s.tty' % os.path.basename(config['_arduino_']['tty'])))
+        proxy_tty = _get_proxy_tty_name(config)
 
         is_proxy_start = False if os.path.exists(proxy_tty) else True
-        print is_proxy_start
         # start the socat proxy
         if not os.path.exists(proxy_tty):
             socat_opts = {'baudrate': aconfig['baudrate'],
@@ -254,12 +256,12 @@ def get_arduino(args, config):
             }
             socat_cmd = tuple([x % socat_opts for x in SOCAT_CMD])
             subprocess.Popen(socat_cmd)
-            print colored('Started socat proxy on %s cmd \n(%s)' % (proxy_tty, socat_cmd), 'cyan')
+            print colored('Started socat proxy on %s' % proxy_tty, 'cyan')
             time.sleep(1)
 
         # Connect via socat proxy
         if os.path.exists(proxy_tty):
-            print "Conecting via proxy %s" % proxy_tty
+            #print "Conecting via proxy %s" % proxy_tty
             arduino = Arduino(tty=proxy_tty, baudrate=aconfig['baudrate'],
                               pinfile=aconfig['pinfile'], model=aconfig['model'])
             setattr(arduino, 'cli_mode', True)
@@ -417,6 +419,14 @@ def update_firmware(args, config): # pylint: disable=too-many-locals
     if not os.path.exists(config['_arduino_']['tty']):
         errmsg = "%s not found. Connected?" % config['_arduino_']['tty']
         raise ArduinoConfigError(errmsg)
+
+    proxy_tty = _get_proxy_tty_name(config)
+    if os.path.exists(proxy_tty):
+        print colored("Socat proxy running. Stopping.", 'red')
+        cmd = "ps aux | grep socat | grep -v grep | grep %s | awk '{ print $2 }'" % proxy_tty
+        pid = subprocess.check_output(cmd, shell=True).strip()
+        subprocess.check_output(['kill', '%s' % pid])
+        time.sleep(1)
 
     olddir = os.getcwd()
     os.chdir(tmpdir)
