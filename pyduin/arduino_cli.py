@@ -48,10 +48,10 @@ libraries:
     source: https://github.com/mpflaga/Arduino-MemoryFree/archive/master.zip
 
 buddies:
-  guinny-pig:
+  guinea-pig:
     model: nano
     flavour: atmega328
-  guinnie-pig2:
+  guinea-pig2:
     model: nano
     flavour: atmega168
 """
