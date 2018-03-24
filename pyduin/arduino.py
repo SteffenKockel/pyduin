@@ -60,8 +60,9 @@ class Arduino(object): # pylint: disable=too-many-instance-attributes
             according to pinfile.
         """
         try:
-            self.Connection = serial.Serial(self.tty, self.baudrate, timeout=10) # pylint: disable=invalid-name
-            time.sleep(1.5)
+            self.Connection = serial.Serial(self.tty, self.baudrate, timeout=3) # pylint: disable=invalid-name
+            if not self.cli_mode:
+                time.sleep(1.5)
             self.setup_pins()
             self.ready = True
             return True

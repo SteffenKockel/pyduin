@@ -8,6 +8,7 @@
 """
 import argparse
 import contextlib
+from distutils.spawn import find_executable
 import lzma
 import os
 import re
@@ -16,11 +17,12 @@ from shutil import copyfile, move
 import subprocess
 import tarfile
 from termcolor import colored
+import time
 import yaml
 import sys
 import zipfile
 
-import pyduin.arduino
+from pyduin.arduino import Arduino, ArduinoConfigError
 
 # Basic user config template
 
@@ -79,6 +81,14 @@ AVRDUDE_ISP_BAUDRATE = %(baudrate)s
 include %(arduino_makefile)s
 """
 
+# SOCAT_CMD = ('/usr/bin/socat', '-x', '-s', '-ddd' '-ddd',
+# '%(source_tty)s,b%(baudrate)s,cs8,parenb=0,cstopb=0,clocal=0,raw,echo=0,setlk,flock-ex-nb,nonblock=1',
+# 'PTY,link=%(proxy_tty)s,b%(baudrate)s,cs8,parenb=0,cstopb=0,clocal=0,raw,echo=0,setlk,flock-ex-nb,nonblock=1')
+
+SOCAT_CMD = ('/usr/bin/socat', '-s', '-d',
+'%(source_tty)s,b%(baudrate)s,cs8,parenb=0,cstopb=0,clocal=0,raw,echo=0,setlk,flock-ex-nb,nonblock=1',
+'PTY,link=%(proxy_tty)s,b%(baudrate)s,cs8,parenb=0,cstopb=0,clocal=0,raw,echo=0,setlk,flock-ex-nb,nonblock=1')
+
 
 def get_file(source, target):
     print colored("Getting %s from %s" % (target, source), 'blue')
@@ -91,14 +101,14 @@ def get_file(source, target):
                     target.write(chunk)
             return
         errmsg = "Cannot download %s from %s" % (os.path.basename(source), source)
-        raise pyduin.arduino.ArduinoConfigError(errmsg)
+        raise ArduinoConfigError(errmsg)
     else:
         if not os.path.isfile(source):
             errmsg = "Source file %s does not exist"
-            raise pyduin.arduino.ArduinoConfigError(errmsg)
+            raise ArduinoConfigError(errmsg)
         elif not os.path.isdir(os.path.dirname(target)):
             errmsg = "Target dir %s does not exist"
-            raise pyduin.arduino.ArduinoConfigError(errmsg)
+            raise ArduinoConfigError(errmsg)
         copyfile(source, target)
 
 def extract_file(src_file, targetdir, rebase=False):
@@ -123,17 +133,6 @@ def extract_file(src_file, targetdir, rebase=False):
 
     if rebase:
         move('/'.join((targetdir, path)), rebase)
-
-
-def get_arduino(args):
-    """
-        Get an arduino object, open the serial connection and return it
-    """
-    arduino = pyduin.arduino.Arduino(tty=args['tty'], baudrate=args['baudrate'],
-                                 pinfile=args['pinfile'], model=args['model'])
-    setattr(arduino, 'cli_mode', True)
-    arduino.open_serial_connection()
-    return arduino
 
 
 def get_basic_config(args):
@@ -187,10 +186,10 @@ def get_pyduin_userconfig(args, basic_config):
     config = basic_config
     if args.buddy:
         if not config.get('buddies'):
-            raise pyduin.arduino.ArduinoConfigError("Configfile is missing 'buddies' section")
+            raise ArduinoConfigError("Configfile is missing 'buddies' section")
         if not config['buddies'].get(args.buddy):
             errmsg = "Buddy '%s' not described in configfile's 'buddies' section" % args.buddy
-            raise pyduin.arduino.ArduinoConfigError(errmsg)
+            raise ArduinoConfigError(errmsg)
 
     arduino_config = {}
     for opt in ('tty', 'baudrate', 'model', 'pinfile'):
@@ -206,7 +205,7 @@ def get_pyduin_userconfig(args, basic_config):
 
     model = config['_arduino_']['model']
     if not model or model.lower() not in ('nano', 'mega', 'uno'):
-        raise pyduin.arduino.ArduinoConfigError("Model is undefined or unknown: %s" % model)
+        raise ArduinoConfigError("Model is undefined or unknown: %s" % model)
 
     pinfile = os.path.expanduser(args.pinfile) if (args.pinfile and args.pinfile.startswith('~')) \
                 else args.pinfile if args.pinfile \
@@ -223,9 +222,57 @@ def get_pyduin_userconfig(args, basic_config):
     if not os.path.isfile(pinfile) and default_pinfile:
         get_file(config['pinfile_src'] % {'model': model}, pinfile)
         # errmsg = "Cannot find or download pinfile for model '%s'. Supported?" % model
-        # raise pyduin.arduino.ArduinoConfigError(errmsg)
+        # raise ArduinoConfigError(errmsg)
 
     return config
+
+
+
+def get_arduino(args, config):
+    """
+        Get an arduino object, open the serial connection if it is the first connection
+        or cli_mode=True (socat off/unavailable) and return it. Start a socat proxy for
+        command line interaction if configured and not running to circumvent serial resets
+        on any reconnect in for command line operations.
+    """
+    aconfig = config['_arduino_']
+    if config['use_socat']:
+        socat = find_executable('socat')
+        if not socat:
+            errmsg = "Cannot find 'socat' in PATH, but use is configured in ~/.pyduin.yml"
+            raise ArduinoConfigError(errmsg)
+        proxy_tty = os.path.sep.join((config['workdir'],
+                                      '%s.tty' % os.path.basename(config['_arduino_']['tty'])))
+
+        is_proxy_start = False if os.path.exists(proxy_tty) else True
+        print is_proxy_start
+        # start the socat proxy
+        if not os.path.exists(proxy_tty):
+            socat_opts = {'baudrate': aconfig['baudrate'],
+                          'source_tty': aconfig['tty'],
+                          'proxy_tty': proxy_tty
+            }
+            socat_cmd = tuple([x % socat_opts for x in SOCAT_CMD])
+            subprocess.Popen(socat_cmd)
+            print colored('Started socat proxy on %s cmd \n(%s)' % (proxy_tty, socat_cmd), 'cyan')
+            time.sleep(1)
+
+        # Connect via socat proxy
+        if os.path.exists(proxy_tty):
+            print "Conecting via proxy %s" % proxy_tty
+            arduino = Arduino(tty=proxy_tty, baudrate=aconfig['baudrate'],
+                              pinfile=aconfig['pinfile'], model=aconfig['model'])
+            setattr(arduino, 'cli_mode', True)
+        if is_proxy_start:
+            setattr(arduino, 'cli_mode', False)
+
+        arduino.open_serial_connection()
+    else:
+        arduino = Arduino(tty=aconfig['tty'], baudrate=aconfig['baudrate'],
+                          pinfile=aconfig['pinfile'], model=aconfig['model'])
+        setattr(arduino, 'cli_mode', True)
+        arduino.open_serial_connection()
+    return arduino
 
 
 def check_ide_and_libs(args, config): # pylint: disable=too-many-locals
@@ -269,7 +316,7 @@ def check_ide_and_libs(args, config): # pylint: disable=too-many-locals
             if not source:
                 errmsg = "No source defined for lib %s and source not found in %s" %\
                         (library, libdir)
-                raise pyduin.arduino.ArduinoConfigError(errmsg)
+                raise ArduinoConfigError(errmsg)
 
             target = '/'.join((libdir, os.path.basename(source)))
             if not os.path.isfile(target):
@@ -310,7 +357,7 @@ def update_firmware(args, config): # pylint: disable=too-many-locals
         config['buddies'][args.buddy].get('flavour') and args.buddy else False
     if not flavour:
         errmsg = "A flavour needs to defined with the -F option or in ~/.pyduin.yml"
-        raise pyduin.arduino.ArduinoConfigError(errmsg)
+        raise ArduinoConfigError(errmsg)
 
     model = config['_arduino_']['model']
     full_ide_dir = config['full_ide_dir']
@@ -321,14 +368,14 @@ def update_firmware(args, config): # pylint: disable=too-many-locals
     mcu = [x for x in mculib if re.search("^%s.*.%s.*mcu=" % (model, flavour), x)]
     if not mcu or len(mcu) != 1:
         errmsg = "Cannot find mcu correspondig to flavour %s and model %s in boards.txt" % (flavour, model)
-        raise pyduin.arduino.ArduinoConfigError(errmsg)
+        raise ArduinoConfigError(errmsg)
 
     mcu = mcu[0].split('=')[1].strip()
 
     isp_baudrate = [x for x in mculib if re.search("^%s.*.%s.*upload.speed=" % (model, flavour), x)]
     if not isp_baudrate or len(isp_baudrate) != 1:
         errmsg = "Cannot determine upload baudrate for flavour %s and model %s from boards.txt" % (flavour, model)
-        raise pyduin.arduino.ArduinoConfigError(errmsg)
+        raise ArduinoConfigError(errmsg)
     baudrate = isp_baudrate[0].split('=')[1].strip()
     # Generat a Makefile from template above.
     makefilevars = {'tty': config['_arduino_']['tty'],
@@ -359,7 +406,7 @@ def update_firmware(args, config): # pylint: disable=too-many-locals
 
     if not os.path.isfile(ino) or not ino:
         errmsg = "Cannot find .ino in %s. Giving up." % ino
-        raise pyduin.arduino.ArduinoConfigError(errmsg)
+        raise ArduinoConfigError(errmsg)
 
     # Get the actual .ino file aka 'sketch' to compile and upload
     inotmp = '/'.join((tmpdir, 'pyduin.ino'))
@@ -369,7 +416,7 @@ def update_firmware(args, config): # pylint: disable=too-many-locals
 
     if not os.path.exists(config['_arduino_']['tty']):
         errmsg = "%s not found. Connected?" % config['_arduino_']['tty']
-        raise pyduin.arduino.ArduinoConfigError(errmsg)
+        raise ArduinoConfigError(errmsg)
 
     olddir = os.getcwd()
     os.chdir(tmpdir)
@@ -432,7 +479,7 @@ def main():
         try:
             basic_config = get_basic_config(args)
             check_ide_and_libs(args, basic_config)
-        except pyduin.arduino.ArduinoConfigError, error:
+        except ArduinoConfigError, error:
             print colored(error, 'red')
         sys.exit(0)
 
@@ -442,7 +489,7 @@ def main():
             config = get_pyduin_userconfig(args, basic_config)
             check_ide_and_libs(args, config)
             update_firmware(args, config)
-        except pyduin.arduino.ArduinoConfigError, error:
+        except ArduinoConfigError, error:
             print colored(error, 'red')
         sys.exit(0)
 
@@ -450,21 +497,22 @@ def main():
     try:
         basic_config = get_basic_config(args)
         config = get_pyduin_userconfig(args, basic_config)
-    except pyduin.arduino.ArduinoConfigError, error:
+    except ArduinoConfigError, error:
         print colored(error, 'red')
         sys.exit(1)
 
-    Arduino = get_arduino(config['_arduino_'])
+    Arduino = get_arduino(args, config)
+
     if args.action and args.action == 'free':
         print Arduino.get_free_memory()
         sys.exit(0)
     if args.action and args.action == 'version':
         print Arduino.get_firmware_version()
         sys.exit(0)
-    if args.action and args.action in ('high','low','state'):
+    if args.action and args.action in ('high','low','state','mode'):
         if args.pin in Arduino.Pins.keys():
             pin = Arduino.Pins[args.pin]
-            getattr(pin, args.action)()
+            print getattr(pin, args.action)()
 
     #print args
 

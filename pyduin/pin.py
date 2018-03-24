@@ -47,7 +47,8 @@ class Mode(object):
         self.Pin = weakref.proxy(Pin) # pylint: disable=invalid-name
         self.wanted_mode = pin_mode
         self._setpinmodetext = """Set pin mode for pin %d to""" % (self.Pin.pin_id)
-        self.set_mode(pin_mode)
+        if not self.Pin.Arduino.cli_mode:
+            self.set_mode(pin_mode)
 
 
     def analog_or_digital(self):
