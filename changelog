@@ -4,6 +4,7 @@
 
 * Add socat usage
 * Add CLI action to set pin mode
+* Flake8 and Pylint tests
 
 == 0.2.1
 
@@ -16,7 +17,7 @@
 * Add CLI wrapper
 * Add flash feature
 * Add lib, ide download feature
-* Add CLI action for memory_usage, version, 
+* Add CLI action for memory_usage, version,
 
 == 0.1.dev0
 
