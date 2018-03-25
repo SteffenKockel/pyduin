@@ -581,12 +581,14 @@ def main():  # pylint: disable=too-many-statements,too-many-branches,too-many-lo
         if args.install_dependencies:
             basic_config = get_basic_config(args)
             check_ide_and_libs(basic_config)
+            sys.exit(0)
 
         elif args.flash:
             basic_config = get_basic_config(args)
             config = get_pyduin_userconfig(args, basic_config)
             check_ide_and_libs(config)
             update_firmware(args, config)
+            sys.exit(0)
 
         basic_config = get_basic_config(args)
         config = get_pyduin_userconfig(args, basic_config)
