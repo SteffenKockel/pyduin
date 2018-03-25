@@ -1,0 +1,25 @@
+= pyduin changelog
+
+== 0.5.0
+
+* Addsocat usage
+* Add CLI action to set pin mode
+
+== 0.2.1
+
+* Raise software level from alpha to beta
+* Add CLI action for pin high, low, state
+* Add colored output
+
+== 0.2
+
+* Add CLI wrapper
+* Add flash feature
+* Add lib, ide download feature
+* Add CLI action for memory_usage, version, 
+
+== 0.1.dev0
+
+* Initial version
+* Working arduino,pin,mode class
+* Add unittests
