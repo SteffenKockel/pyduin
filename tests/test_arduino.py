@@ -115,6 +115,7 @@ class TestArduinoFirmwareMethods(unittest.TestCase):
         msg = self.Arduino.Connection.readline().strip()
         self.assertEquals(msg, "0%version%0.2.1")
 
+        self.Arduino.Connection.close()
 
         # Test for bus....
 

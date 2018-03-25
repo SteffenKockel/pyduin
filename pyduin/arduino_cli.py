@@ -30,7 +30,7 @@ ARDUINO_RELEASES = ('0013', '0014', '0015', '0016', '0017', '0018', '0019', '002
                     '0022', '0023', '1.0', '1.0.1', '1.0.2', '1.0.3', '1.0.4', '1.0.5',
                     '1.6.0', '1.6.1', '1.6.2', '1.6.3', '1.6.4', '1.6.5-r5', '1.6.6', '1.6.7',
                     '1.6.8', '1.6.9', '1.6.10', '1.6.11', '1.6.12', '1.6.13', '1.8.0',
-                    '1.8.1', '1.8.2', '1.8.3')
+                    '1.8.1', '1.8.2', '1.8.3', '1.8.4')
 
 # Basic user config template
 
@@ -136,7 +136,8 @@ def extract_file(src_file, targetdir, rebase=False):
     """
     filetype = os.path.basename(src_file).split('.')[-1]
     if filetype == 'xz':
-        # proudly copied from: https://stackoverflow.com/questions/17217073/how-to-decompress-a-xz-file-which-has-multiple-folders-files-inside-in-a-singl # pylint: disable=line-too-long
+        # proudly copied from:
+        # https://stackoverflow.com/questions/17217073/how-to-decompress-a-xz-file-which-has-multiple-folders-files-inside-in-a-singl # pylint: disable=line-too-long
         with contextlib.closing(lzma.LZMAFile(src_file)) as xz_file:
             with tarfile.open(fileobj=xz_file) as source_file:
                 path = source_file.members[0].path
@@ -295,7 +296,6 @@ def _get_arduino_config(args, config):
     # Ensure buddies section exists, even if empty
     config['buddies'] = config.get('buddies', {})
     config['_arduino_'] = arduino_config
-
     model = config['_arduino_']['model']
     check_model_support(model)
 
@@ -467,20 +467,21 @@ def update_firmware(args, config):  # pylint: disable=too-many-locals,too-many-s
         config.get('buddies') and args.buddy in config['buddies'].keys() and \
         config['buddies'][args.buddy].get('flavour') and args.buddy else False
     model = config['_arduino_']['model']
+    # print config['_arduino_']
     full_ide_dir = config['full_ide_dir']
     mculib = "%s/hardware/arduino/avr/boards.txt" % full_ide_dir
     with open(mculib) as _mculib:
         mculib = _mculib.readlines()
 
-    mcu = [x for x in mculib if re.search("^%s.*mcu=" % model, x)] if not flavour else \
-          [x for x in mculib if re.search("^%s.*.%s.*mcu=" % (model, flavour), x)]
+    mcu = [x for x in mculib if re.search(r"^%s\..*mcu=" % model, x)] if not flavour else \
+          [x for x in mculib if re.search(r"^%s\..*.%s.*mcu=" % (model, flavour), x)]
     if not mcu or len(mcu) != 1:
         errmsg = "Cannot find mcu correspondig to flavour %s and model %s in boards.txt" % (flavour, model)
         raise ArduinoConfigError(errmsg)
     mcu = mcu[0].split('=')[1].strip()
 
-    isp_baudrate = [x for x in mculib if re.search("^%s.*upload.speed=" % model, x)] if not flavour else \
-                   [x for x in mculib if re.search("^%s.*.%s.*upload.speed=" % (model, flavour), x)]
+    isp_baudrate = [x for x in mculib if re.search(r"^%s\..*upload.speed=" % model, x)] if not flavour else \
+                   [x for x in mculib if re.search(r"^%s\..*.%s.*upload.speed=" % (model, flavour), x)]
     if not isp_baudrate or len(isp_baudrate) != 1:
         errmsg = "Cannot determine upload baudrate for flavour %s and model %s from boards.txt" % (flavour, model)
         raise ArduinoConfigError(errmsg)
