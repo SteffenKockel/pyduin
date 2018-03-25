@@ -31,7 +31,7 @@ class Flake8TestCase(unittest.TestCase):
 
     def test_flake8(self):
         """Test: Run flake8 on Python source code"""
-        cmd = [sys.executable, "-m", "flake8", "--max-line-length=99"] + get_source_files()
+        cmd = [sys.executable, "-m", "flake8", "--max-line-length=200", "--ignore=E124,E126,E127,E128,E713"] + get_source_files()
         if unittest_verbosity() >= 2:
             sys.stderr.write("Running following command:\n{}\n".format(" ".join(cmd)))
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE,

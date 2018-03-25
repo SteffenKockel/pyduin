@@ -8,19 +8,20 @@
 """
 import argparse
 import contextlib
-from distutils.spawn import find_executable
+from distutils.spawn import find_executable  # pylint: disable=no-name-in-module,import-error
 import lzma
 import os
 import re
-import requests
 from shutil import copyfile, move
 import subprocess
-import tarfile
-from termcolor import colored
-import time
-import yaml
 import sys
+import tarfile
+import time
 import zipfile
+
+import requests
+import yaml
+from termcolor import colored
 
 from pyduin.arduino import Arduino, ArduinoConfigError
 
@@ -82,24 +83,29 @@ AVRDUDE_ISP_BAUDRATE = %(baudrate)s
 include %(arduino_makefile)s
 """
 
-# SOCAT_CMD = ('/usr/bin/socat', '-x', '-s', '-ddd' '-ddd',
-# '%(source_tty)s,b%(baudrate)s,cs8,parenb=0,cstopb=0,clocal=0,raw,echo=0,setlk,flock-ex-nb,nonblock=1',
-# 'PTY,link=%(proxy_tty)s,b%(baudrate)s,cs8,parenb=0,cstopb=0,clocal=0,raw,echo=0,setlk,flock-ex-nb,nonblock=1')
+SOCAT_CMD_DEBUG = \
+    ('/usr/bin/socat', '-x', '-s', '-ddd' '-ddd',
+     '%(source_tty)s,b%(baudrate)s,cs8,parenb=0,cstopb=0,clocal=0,raw,echo=0,setlk,flock-ex-nb,nonblock=1',
+     'PTY,link=%(proxy_tty)s,b%(baudrate)s,cs8,parenb=0,cstopb=0,clocal=0,raw,echo=0,setlk,flock-ex-nb,nonblock=1')
 
-SOCAT_CMD = ('/usr/bin/socat', '-s', '-d',
-'%(source_tty)s,b%(baudrate)s,cs8,parenb=0,cstopb=0,clocal=0,raw,echo=0,setlk,flock-ex-nb,nonblock=1',
-'PTY,link=%(proxy_tty)s,b%(baudrate)s,cs8,parenb=0,cstopb=0,clocal=0,raw,echo=0,setlk,flock-ex-nb,nonblock=1')
+SOCAT_CMD = \
+    ('/usr/bin/socat', '-s', '-d',
+     '%(source_tty)s,b%(baudrate)s,cs8,parenb=0,cstopb=0,clocal=0,raw,echo=0,setlk,flock-ex-nb,nonblock=1',
+     'PTY,link=%(proxy_tty)s,b%(baudrate)s,cs8,parenb=0,cstopb=0,clocal=0,raw,echo=0,setlk,flock-ex-nb,nonblock=1')
 
 
 def get_file(source, target):
+    """
+    Download/copy a file from source to targer
+    """
     print colored("Getting %s from %s" % (target, source), 'blue')
-    source = os.expanduser(source) if source.startswith('~') else source
+    source = os.path.expanduser(source) if source.startswith('~') else source
     if source.startswith('http'):
         res = requests.get(source)
         if res.status_code == 200:
-            with open(target, 'wb') as target:
+            with open(target, 'wb') as _target:
                 for chunk in res:
-                    target.write(chunk)
+                    _target.write(chunk)
             return
         errmsg = "Cannot download %s from %s" % (os.path.basename(source), source)
         raise ArduinoConfigError(errmsg)
@@ -111,6 +117,7 @@ def get_file(source, target):
             errmsg = "Target dir %s does not exist"
             raise ArduinoConfigError(errmsg)
         copyfile(source, target)
+
 
 def extract_file(src_file, targetdir, rebase=False):
     """
@@ -180,6 +187,7 @@ def get_basic_config(args):
 
     return basic_config
 
+
 def get_pyduin_userconfig(args, basic_config):
     """
         Get advanced config for arduino interaction
@@ -195,8 +203,9 @@ def get_pyduin_userconfig(args, basic_config):
     arduino_config = {}
     for opt in ('tty', 'baudrate', 'model', 'pinfile'):
         _opt = getattr(args, opt) if getattr(args, opt) else \
-                config['buddies'][args.buddy][opt] if (args.buddy and \
-                config.get('buddies') and config['buddies'].get(args.buddy) and \
+               config['buddies'][args.buddy][opt] if \
+               (args.buddy and config.get('buddies') and
+                config['buddies'].get(args.buddy) and
                 config['buddies'][args.buddy].get(opt, False)) else False
         arduino_config[opt] = _opt
 
@@ -227,6 +236,7 @@ def get_pyduin_userconfig(args, basic_config):
 
     return config
 
+
 def _get_proxy_tty_name(config):
     tty = os.path.basename(config['_arduino_']['tty'])
     proxy_tty = os.path.sep.join((config['workdir'], '%s.tty' % tty))
@@ -254,7 +264,7 @@ def get_arduino(args, config):
             socat_opts = {'baudrate': aconfig['baudrate'],
                           'source_tty': aconfig['tty'],
                           'proxy_tty': proxy_tty
-            }
+                         }
             socat_cmd = tuple([x % socat_opts for x in SOCAT_CMD])
             subprocess.Popen(socat_cmd)
             print colored('Started socat proxy on %s' % proxy_tty, 'cyan')
@@ -262,7 +272,6 @@ def get_arduino(args, config):
 
         # Connect via socat proxy
         if os.path.exists(proxy_tty):
-            #print "Conecting via proxy %s" % proxy_tty
             arduino = Arduino(tty=proxy_tty, baudrate=aconfig['baudrate'],
                               pinfile=aconfig['pinfile'], model=aconfig['model'])
             setattr(arduino, 'cli_mode', True)
@@ -278,7 +287,7 @@ def get_arduino(args, config):
     return arduino
 
 
-def check_ide_and_libs(args, config): # pylint: disable=too-many-locals
+def check_ide_and_libs(config):  # pylint: disable=too-many-locals,too-many-branches
     """
         Update firmware on arduino (cmmi!)
     """
@@ -313,7 +322,7 @@ def check_ide_and_libs(args, config): # pylint: disable=too-many-locals
 
     for library, libconf in config['libraries'].iteritems():
         _libdir = '/'.join((libdir, library))
-        #print colored("Checking for library %s" % _libdir, 'yellow')
+        # print colored("Checking for library %s" % _libdir, 'yellow')
         if not os.path.isdir(_libdir):
             source = libconf.get('source', False)
             if not source:
@@ -325,7 +334,7 @@ def check_ide_and_libs(args, config): # pylint: disable=too-many-locals
             if not os.path.isfile(target):
                 get_file(source, target)
             # finally, extract the file
-            extract_file(target, libdir, rebase='/'.join((libdir,library)))
+            extract_file(target, libdir, rebase='/'.join((libdir, library)))
         else:
             print colored("Found library %s" % _libdir, 'green')
 
@@ -335,12 +344,12 @@ def check_ide_and_libs(args, config): # pylint: disable=too-many-locals
     mk_dir = '/'.join((config['workdir'], 'makefiles'))
     mk_version = config['arduino_makefile_version']
     mk_dir_full = '/'.join((mk_dir, 'Arduino-Makefile-%s' % mk_version))
-    #print colored("Checking for %s" % mk_dir_full, 'yellow')
+    # print colored("Checking for %s" % mk_dir_full, 'yellow')
     if not os.path.isdir(mk_dir):
         os.mkdir(mk_dir)
 
     if not os.path.isdir(mk_dir_full):
-        mk_tar = '/'.join((mk_dir, 'Arduino-Makefile-%s.tar.gz' % mk_version ))
+        mk_tar = '/'.join((mk_dir, 'Arduino-Makefile-%s.tar.gz' % mk_version))
         url = config['arduino_makefile_src'] % {'version': mk_version}
         if not os.path.isfile(mk_tar):
             get_file(url, mk_tar)
@@ -348,7 +357,8 @@ def check_ide_and_libs(args, config): # pylint: disable=too-many-locals
     else:
         print colored("Found %s" % mk_dir_full, 'green')
 
-def update_firmware(args, config): # pylint: disable=too-many-locals
+
+def update_firmware(args, config):  # pylint: disable=too-many-locals,too-many-statements
     """
         Update firmware on arduino (cmmi!)
     """
@@ -390,7 +400,7 @@ def update_firmware(args, config): # pylint: disable=too-many-locals
                     'board_sub': flavour,
                     'model': model,
                     'baudrate': baudrate
-                  }
+                   }
     makefile = MAKEFILE_TEMPLATE % makefilevars
     # Create tmp dir if needed and place Makefile in tmp dir
     if not os.path.isdir(tmpdir):
@@ -448,7 +458,7 @@ def versions():
     pass
 
 
-def main():
+def main():  # pylint: disable=too-many-statements,too-many-branches,too-many-locals
     """
         Evaluate user arguments and determine task
     """
@@ -480,7 +490,6 @@ def main():
     paa('-w', '--workdir', type=str, default=False,
         help="Alternate workdir path (default: ~/.pyduin)")
 
-
     args = parser.parse_args()
 
     # try to open ~/.pyduin
@@ -491,7 +500,7 @@ def main():
     if args.install_dependencies:
         try:
             basic_config = get_basic_config(args)
-            check_ide_and_libs(args, basic_config)
+            check_ide_and_libs(basic_config)
         except ArduinoConfigError, error:
             print colored(error, 'red')
         sys.exit(0)
@@ -500,12 +509,11 @@ def main():
         try:
             basic_config = get_basic_config(args)
             config = get_pyduin_userconfig(args, basic_config)
-            check_ide_and_libs(args, config)
+            check_ide_and_libs(config)
             update_firmware(args, config)
         except ArduinoConfigError, error:
             print colored(error, 'red')
         sys.exit(0)
-
 
     try:
         basic_config = get_basic_config(args)
@@ -514,29 +522,29 @@ def main():
         print colored(error, 'red')
         sys.exit(1)
 
-    Arduino = get_arduino(args, config)
+    arduino = get_arduino(args, config)
 
     actions = ('free', 'version', 'high', 'low', 'state', 'mode')
 
     if args.action and args.action == 'free':
-        print Arduino.get_free_memory()
+        print arduino.get_free_memory()
         sys.exit(0)
     if args.action and args.action == 'version':
-        print Arduino.get_firmware_version()
+        print arduino.get_firmware_version()
         sys.exit(0)
 
     try:
         color = 'green'
         if args.action and args.action.lower() not in actions:
-                raise ArduinoConfigError("Action '%s' is not available" % args.action)
-        if args.action and args.action in ('high','low','state'):
+            raise ArduinoConfigError("Action '%s' is not available" % args.action)
+        if args.action and args.action in ('high', 'low', 'state'):
             if not args.pin:
                 raise ArduinoConfigError("The requested --action requires a --pin. Aborting")
-            if not args.pin in Arduino.Pins.keys():
+            if not args.pin in arduino.Pins.keys():
                 message = "Defined pin (%s) is not available. Check pinfile."
                 raise ArduinoConfigError(message % args.pin)
 
-            pin = Arduino.Pins[args.pin]
+            pin = arduino.Pins[args.pin]
             action = getattr(pin, args.action)
             result = action().split('%')
             state = 'low' if int(result[-1]) == 0 else 'high'
@@ -552,9 +560,9 @@ def main():
             if not args.mode:
                 raise ArduinoConfigError("'--action mode' needs '--mode <MODE>' to be specified")
             if args.mode.lower() not in pinmodes:
-                raise ArduinoConfigError("Mode '%s' is not available." % args.mode )
+                raise ArduinoConfigError("Mode '%s' is not available." % args.mode)
 
-            Pin = Arduino.Pins[int(args.pin)]
+            Pin = arduino.Pins[int(args.pin)]
             if args.mode == 'pwm':
                 pass
             else:
@@ -568,13 +576,10 @@ def main():
                     color = 'red'
                 print colored(state, color)
 
-
-
     except ArduinoConfigError, error:
-       print colored(error, 'red')
-       sys.exit(1)
+        print colored(error, 'red')
+        sys.exit(1)
 
-    #print args
 
 if __name__ == '__main__':
     main()

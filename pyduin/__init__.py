@@ -1,5 +1,4 @@
 """
-	pyduin
-
-	Python module for seamless arduino interaction
+    pyduin
+    Python module for seamless arduino interaction
 """
