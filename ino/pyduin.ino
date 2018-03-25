@@ -41,7 +41,7 @@ DallasTemperature *myDallasTemperature = NULL;
 DeviceAddress OneWireAddr;
 
 // firmware version
-String firmware_version = "0.2.1";
+String firmware_version = "0.5.0";
 // arduino id
 int arduino_id = 0;
 // command
