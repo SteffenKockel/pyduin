@@ -26,6 +26,11 @@ from termcolor import colored
 from pyduin.arduino import Arduino, ArduinoConfigError
 
 SUPPORTED_MODELS = ('nano', 'mega', 'uno')
+ARDUINO_RELEASES = ('0013', '0014', '0015', '0016', '0017', '0018', '0019', '0020', '0021',
+                    '0022', '0023', '1.0', '1.0.1', '1.0.2', '1.0.3', '1.0.4', '1.0.5',
+                    '1.6.0', '1.6.1', '1.6.2', '1.6.3', '1.6.4', '1.6.5-r5', '1.6.6', '1.6.7',
+                    '1.6.8', '1.6.9', '1.6.10', '1.6.11', '1.6.12', '1.6.13', '1.8.0',
+                    '1.8.1', '1.8.2', '1.8.3')
 
 # Basic user config template
 
@@ -37,7 +42,8 @@ arduino_makefile: ~/.pyduin/makefiles/Arduino-Makefile-%(version)s/Arduino.mk
 arduino_makefile_version: 1.3.1
 arduino_makefile_src: https://github.com/sudar/Arduino-Makefile/archive/%(version)s.tar.gz
 arduino_architecture: linux64 # linux[32|64|arm]
-arduino_src: https://downloads.arduino.cc/arduino-%(version)s-%(architecture)s.tar.xz
+#arduino_src: https://downloads.arduino.cc/arduino-%(version)s-%(architecture)s.tar.xz
+arduino_src: https://github.com/arduino/Arduino/releases/tag/%(version)s
 pinfile_src: https://raw.githubusercontent.com/SteffenKockel/pyduin/master/pinfiles/%(model)s.yml
 arduino_version: 1.6.5-r5
 
@@ -208,6 +214,17 @@ def get_full_ide_dir(ide_dir, arduino_version):
     return '/'.join((ide_dir, 'arduino-%s' % arduino_version))
 
 
+def get_arduino_version(args, basic_config):
+    """ Determine arduino version to use """
+    version = args.arduino_version if args.arduino_version else \
+              basic_config['arduino_version']
+    if not version in ARDUINO_RELEASES:
+        errmsg = "The given arduino IDE version does not exist: %s. Available versions: \n%s" % \
+                 (version, '\n'.join(ARDUINO_RELEASES))
+        raise ArduinoConfigError(errmsg)
+    return version
+
+
 def get_basic_config(args):
     """
         Get config needed for all operations
@@ -224,12 +241,12 @@ def get_basic_config(args):
     basic_config['pinfiledir'] = get_pinfile_dir(basic_config['workdir'])
     ensure_dir('pinfiledir', basic_config['pinfiledir'])
 
-    # Calculate IDE dir
-    ide_dir = get_ide_dir(basic_config['workdir'])
-    ensure_dir('ide_dir', ide_dir)
-    basic_config['ide_dir'] = ide_dir
-    basic_config['full_ide_dir'] = get_full_ide_dir(ide_dir, basic_config['arduino_version'])
-
+    # Calculate IDE dir, version, full_ide_dir
+    basic_config['ide_dir'] = get_ide_dir(basic_config['workdir'])
+    ensure_dir('ide_dir', basic_config['ide_dir'])
+    basic_config['arduino_version'] = get_arduino_version(args, basic_config)
+    basic_config['full_ide_dir'] = get_full_ide_dir(basic_config['ide_dir'],
+                                                    basic_config['arduino_version'])
     return basic_config
 
 
@@ -544,7 +561,7 @@ def main():  # pylint: disable=too-many-statements,too-many-branches,too-many-lo
     """
     parser = argparse.ArgumentParser(description='Manage arduino from command line.')
     paa = parser.add_argument
-    paa('-a', '--action', default=False, type=str, help="Action, e.g 'high','low'")
+    paa('-a', '--action', default=False, type=str, help="Action, e.g 'high', 'low'")
     paa('-A', '--arduino-version', default='1.6.5-r5', help="IDE version to download and use")
     paa('-b', '--baudrate', default=False, help="Connection speed (default: 115200)")
     paa('-B', '--buddy', type=str, default=False,
