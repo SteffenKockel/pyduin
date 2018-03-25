@@ -25,6 +25,8 @@ from termcolor import colored
 
 from pyduin.arduino import Arduino, ArduinoConfigError
 
+SUPPORTED_MODELS = ('nano', 'mega', 'uno')
+
 # Basic user config template
 
 CONFIG_TEMPLATE = """
@@ -74,7 +76,7 @@ ARDUINO_VAR_PATH = %(ide_dir)s/hardware/arduino/avr/variants
 BOOTLOADER_PARENT = %(ide_dir)s/hardware/arduino/avr/bootloaders
 #ARDUINO_LIBS = Ethernet Ethernet/utility SPI
 BOARD_TAG  = %(model)s
-BOARD_SUB = %(board_sub)s
+#BOARD_SUB = %(board_sub)s
 MCU = %(mcu)s
 AVRDUDE = %(ide_dir)s/hardware/tools/avr/bin/avrdude
 AVRDUDE_CONF = %(ide_dir)s/hardware/tools/avr/etc/avrdude.conf
@@ -143,97 +145,158 @@ def extract_file(src_file, targetdir, rebase=False):
         move('/'.join((targetdir, path)), rebase)
 
 
+def get_user_config_path(args):
+    """
+    Determine the user config path
+    """
+    configfile = args.configfile if args.configfile else '~/.pyduin.yml'
+    return os.path.expanduser(configfile)
+
+
+def check_user_config_file(location):
+    """
+    Check, if basic config file ~/.pyduin.yml exists
+    """
+    if not os.path.isfile(location):
+        print colored("Writing default config file to %s " % location, 'blue')
+        with open(location, 'w') as _configfile:
+            _configfile.write(CONFIG_TEMPLATE)
+
+
+def get_user_config(location):
+    """
+    Load the user config file and parse yaml
+    """
+    with open(location, 'r') as _configfile:
+        basic_config = yaml.load(_configfile)
+    return basic_config
+
+
+def get_workdir(args, config):
+    """
+    Calculate wordkir path
+    """
+    workdir = args.workdir if args.workdir else config.get('workdir', '~/.pyduin')
+    return os.path.expanduser(workdir)
+
+
+def ensure_dir(identifier, directory):
+    """ Create directory if it does not exist. Identifier is used for message. """
+    if not os.path.isdir(directory):
+        print colored("'%s' does not exist '%s'. Creating" % (identifier, directory), 'blue')
+        return os.mkdir(directory)
+    return True
+
+
+def get_pinfile_dir(workdir):
+    """ Calculate pinfile directory """
+    pinfiledir = '/'.join((workdir, 'pinfiles'))
+    return pinfiledir
+
+
+def get_ide_dir(workdir):
+    """ Calculate dir where all IDE's will be located """
+    ide_dir = '/'.join((workdir, 'ide'))
+    return ide_dir
+
+
+def get_full_ide_dir(ide_dir, arduino_version):
+    """ Calculate dir to IDE use for this run """
+    return '/'.join((ide_dir, 'arduino-%s' % arduino_version))
+
+
 def get_basic_config(args):
     """
         Get config needed for all operations
     """
-    # Get basic config file
-    configfile = args.configfile if args.configfile else '~/.pyduin.yml'
-    if configfile.startswith('~'):
-        configfile = os.path.expanduser(configfile)
-
-    if not os.path.isfile(configfile):
-        print colored("Writing default config file to %s " % configfile, 'blue')
-        with open(configfile, 'w') as _configfile:
-            _configfile.write(CONFIG_TEMPLATE)
-
-    with open(configfile, 'r') as _configfile:
-        basic_config = yaml.load(_configfile)
+    confpath = get_user_config_path(args)
+    check_user_config_file(confpath)
+    basic_config = get_user_config(confpath)
 
     # Get workdir
-    workdir = args.workdir if args.workdir else basic_config.get('workdir', '~/.pyduin')
-    if workdir.startswith('~'):
-        workdir = os.path.expanduser(workdir)
-    basic_config['workdir'] = workdir
+    basic_config['workdir'] = get_workdir(args, basic_config)
+    ensure_dir('workdir', basic_config['workdir'])
 
-    if not os.path.isdir(workdir):
-        print colored("Wordir does not exist '%s'. Creating" % workdir, 'blue')
-        os.mkdir(workdir)
-
-    # Get pinfile
-    pinfiledir = '/'.join((workdir, 'pinfiles'))
-    if not os.path.isdir(pinfiledir):
-        print colored("Pinfile dir does not exist '%s'. Creating" % pinfiledir, 'blue')
-        os.mkdir(pinfiledir)
-    basic_config['pinfiledir'] = pinfiledir
+    # Get pinfile_dir
+    basic_config['pinfiledir'] = get_pinfile_dir(basic_config['workdir'])
+    ensure_dir('pinfiledir', basic_config['pinfiledir'])
 
     # Calculate IDE dir
-    ide_dir = '/'.join((workdir, 'ide'))
-    if not os.path.isdir(ide_dir):
-        print colored("IDE dir does not exist: '%s'. Creating" % ide_dir, 'blue')
-        os.mkdir(ide_dir)
+    ide_dir = get_ide_dir(basic_config['workdir'])
+    ensure_dir('ide_dir', ide_dir)
     basic_config['ide_dir'] = ide_dir
-    basic_config['full_ide_dir'] = '/'.join((ide_dir, 'arduino-%s' % basic_config['arduino_version']))
+    basic_config['full_ide_dir'] = get_full_ide_dir(ide_dir, basic_config['arduino-version'])
 
     return basic_config
 
 
-def get_pyduin_userconfig(args, basic_config):
+def verify_buddy(buddy, config):
     """
-        Get advanced config for arduino interaction
+    Determine if the given buddy is defined in config file and the configfile has
+    a 'buddies' section at all.
     """
-    config = basic_config
-    if args.buddy:
-        if not config.get('buddies'):
-            raise ArduinoConfigError("Configfile is missing 'buddies' section")
-        if not config['buddies'].get(args.buddy):
-            errmsg = "Buddy '%s' not described in configfile's 'buddies' section" % args.buddy
-            raise ArduinoConfigError(errmsg)
+    if not config.get('buddies'):
+        raise ArduinoConfigError("Configfile is missing 'buddies' section")
+    if not config['buddies'].get(buddy):
+        errmsg = "Buddy '%s' not described in configfile's 'buddies' section" % buddy
+        raise ArduinoConfigError(errmsg)
+    return True
 
+
+def check_model_support(model):
+    """ Determine if the configured model is supported """
+    if not model or model.lower() not in SUPPORTED_MODELS:
+        raise ArduinoConfigError("Model is undefined or unknown: %s" % model)
+    return True
+
+
+def _get_arduino_config(args, config):
+    """
+    Determine tty, baudrate, model and pinfile for the currently used arduino.
+    """
     arduino_config = {}
     for opt in ('tty', 'baudrate', 'model', 'pinfile'):
         _opt = getattr(args, opt) if getattr(args, opt) else \
                config['buddies'][args.buddy][opt] if \
-               (args.buddy and config.get('buddies') and
-                config['buddies'].get(args.buddy) and
-                config['buddies'][args.buddy].get(opt, False)) else False
+               args.buddy and config.get('buddies') and \
+               config['buddies'].get(args.buddy) and \
+               config['buddies'][args.buddy].get(opt) else False
         arduino_config[opt] = _opt
 
-    if not config.get('buddies'):
-        config['buddies'] = {}
+    # Ensure defaults.
+    if not arduino_config.get('tty'):
+        arduino_config['tty'] = '/dev/ttyUSB0'
+    if not arduino_config.get('baudrate'):
+        arduino_config['baudrate'] = 115200
+    if not arduino_config.get('pinfile'):
+        pinfile = '/'.join((config['pinfiledir'], '%s.yml' % arduino_config['model']))
+        arduino_config['pinfile'] = pinfile
+
+    # Ensure buddies section exists, even if empty
+    config['buddies'] = config.get('buddies', {})
     config['_arduino_'] = arduino_config
 
     model = config['_arduino_']['model']
-    if not model or model.lower() not in ('nano', 'mega', 'uno'):
-        raise ArduinoConfigError("Model is undefined or unknown: %s" % model)
+    check_model_support(model)
 
-    pinfile = os.path.expanduser(args.pinfile) if (args.pinfile and args.pinfile.startswith('~')) \
-                else args.pinfile if args.pinfile \
-                else config['buddies'][args.buddy].get('pinfile') if config['buddies'].get(args.buddy) \
-                else False
-    # no overrides for the pinfile
-    default_pinfile = False if pinfile else True
+    # If no pinfile can be found, attempt to download one from github.
+    if not os.path.isfile(arduino_config['pinfile']):
+        try:
+            get_file(config['pinfile_src'] % {'model': model}, pinfile)
+        except ArduinoConfigError, error:
+            errmsg = "Cannot find/download pinfile for model '%s'. Error: %s" % (model, error)
+            raise ArduinoConfigError(errmsg)
+    return config
 
-    if not pinfile:
-        pinfile = '/'.join((config['pinfiledir'], '%s.yml' % model))
-    config['_arduino_']['pinfile'] = pinfile
 
-    # If no pinfile present, attempt to download one from github.
-    if not os.path.isfile(pinfile) and default_pinfile:
-        get_file(config['pinfile_src'] % {'model': model}, pinfile)
-        # errmsg = "Cannot find or download pinfile for model '%s'. Supported?" % model
-        # raise ArduinoConfigError(errmsg)
+def get_pyduin_userconfig(args, config):
+    """
+        Get advanced config for arduino interaction
+    """
+    if args.buddy:
+        verify_buddy(args.buddy, config)
 
+    config = _get_arduino_config(args, config)
     return config
 
 
@@ -246,12 +309,14 @@ def _get_proxy_tty_name(config):
 def get_arduino(args, config):
     """
         Get an arduino object, open the serial connection if it is the first connection
-        or cli_mode=True (socat off/unavailable) and return it. Start a socat proxy for
-        command line interaction if configured and not running to circumvent serial resets
-        on any reconnect in for command line operations.
+        or cli_mode=True (socat off/unavailable) and return it. To circumvent restarts of
+        the arduino on reconnect, one has two options
+
+        * Start a socat proxy
+        * Do not hang_up_on_close
     """
     aconfig = config['_arduino_']
-    if config['use_socat'] and not args.flash:
+    if config['serial']['use_socat'] and not args.flash:
         socat = find_executable('socat')
         if not socat:
             errmsg = "Cannot find 'socat' in PATH, but use is configured in ~/.pyduin.yml"
@@ -368,28 +433,26 @@ def update_firmware(args, config):  # pylint: disable=too-many-locals,too-many-s
     flavour = args.flavour if args.flavour else config['buddies'][args.buddy]['flavour'] if \
         config.get('buddies') and args.buddy in config['buddies'].keys() and \
         config['buddies'][args.buddy].get('flavour') and args.buddy else False
-    if not flavour:
-        errmsg = "A flavour needs to defined with the -F option or in ~/.pyduin.yml"
-        raise ArduinoConfigError(errmsg)
-
     model = config['_arduino_']['model']
     full_ide_dir = config['full_ide_dir']
     mculib = "%s/hardware/arduino/avr/boards.txt" % full_ide_dir
     with open(mculib) as _mculib:
         mculib = _mculib.readlines()
 
-    mcu = [x for x in mculib if re.search("^%s.*.%s.*mcu=" % (model, flavour), x)]
+    mcu = [x for x in mculib if re.search("^%s.*mcu=" % model, x)] if not flavour else \
+          [x for x in mculib if re.search("^%s.*.%s.*mcu=" % (model, flavour), x)]
     if not mcu or len(mcu) != 1:
         errmsg = "Cannot find mcu correspondig to flavour %s and model %s in boards.txt" % (flavour, model)
         raise ArduinoConfigError(errmsg)
-
     mcu = mcu[0].split('=')[1].strip()
 
-    isp_baudrate = [x for x in mculib if re.search("^%s.*.%s.*upload.speed=" % (model, flavour), x)]
+    isp_baudrate = [x for x in mculib if re.search("^%s.*upload.speed=" % model, x)] if not flavour else \
+                   [x for x in mculib if re.search("^%s.*.%s.*upload.speed=" % (model, flavour), x)]
     if not isp_baudrate or len(isp_baudrate) != 1:
         errmsg = "Cannot determine upload baudrate for flavour %s and model %s from boards.txt" % (flavour, model)
         raise ArduinoConfigError(errmsg)
     baudrate = isp_baudrate[0].split('=')[1].strip()
+
     # Generat a Makefile from template above.
     makefilevars = {'tty': config['_arduino_']['tty'],
                     'workdir': full_ide_dir,
@@ -403,8 +466,8 @@ def update_firmware(args, config):  # pylint: disable=too-many-locals,too-many-s
                    }
     makefile = MAKEFILE_TEMPLATE % makefilevars
     # Create tmp dir if needed and place Makefile in tmp dir
-    if not os.path.isdir(tmpdir):
-        os.mkdir(tmpdir)
+    ensure_dir('tmpdir', tmpdir)
+
     makefilepath = '/'.join((tmpdir, 'Makefile'))
     print colored("Writing makefile to %s" % makefilepath, 'blue')
     if os.path.exists(makefilepath):
@@ -413,6 +476,7 @@ def update_firmware(args, config):  # pylint: disable=too-many-locals,too-many-s
         mkfile.write(makefile)
 
     # Determine, which .ino file to use
+    # @FIXME: ino file location (download?)
     ino = args.ino if args.ino else config.get('ino', '/usr/share/pyduin/ino/pyduin.ino')
     ino = os.path.expanduser(ino) if ino.startswith('~') else \
         '/'.join((os.getcwd(), ino)) if not ino.startswith('/') else ino
@@ -466,7 +530,7 @@ def main():  # pylint: disable=too-many-statements,too-many-branches,too-many-lo
     paa = parser.add_argument
     paa('-a', '--action', default=False, type=str, help="Action, e.g 'high','low'")
     paa('-A', '--arduino-version', default='1.6.5-r5', help="IDE version to download and use")
-    paa('-b', '--baudrate', default=115200, help="Connection speed (default: 115200)")
+    paa('-b', '--baudrate', default=False, help="Connection speed (default: 115200)")
     paa('-B', '--buddy', type=str, default=False,
         help="Use identifier from configfile for detailed configuration")
     paa('-c', '--configfile', type=file, default=False,
@@ -485,7 +549,7 @@ def main():  # pylint: disable=too-many-statements,too-many-branches,too-many-lo
     paa('-p', '--pin', default=False, type=int, help="The pin to do action x with.")
     paa('-P', '--pinfile', default=False,
         help="Pinfile to use (default: ~/.pyduin/pinfiles/<model>.yml")
-    paa('-t', '--tty', default='/dev/ttyUSB0', help="Arduino tty (default: '/dev/ttyUSB0')")
+    paa('-t', '--tty', default=False, help="Arduino tty (default: '/dev/ttyUSB0')")
     paa('-v', '--version', action='store_true', help='Show version info and exit')
     paa('-w', '--workdir', type=str, default=False,
         help="Alternate workdir path (default: ~/.pyduin)")
