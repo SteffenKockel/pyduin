@@ -40,7 +40,7 @@ arduino_architecture: linux64 # linux[32|64|arm]
 arduino_src: https://downloads.arduino.cc/arduino-%(version)s-%(architecture)s.tar.xz
 pinfile_src: https://raw.githubusercontent.com/SteffenKockel/pyduin/master/pinfiles/%(model)s.yml
 arduino_version: 1.6.5-r5
-use_socat: yes
+
 libraries:
   DHT:
     source: https://github.com/adafruit/DHT-sensor-library/archive/1.2.3.tar.gz
@@ -50,6 +50,9 @@ libraries:
     source: https://github.com/milesburton/Arduino-Temperature-Control-Library/archive/3.8.0.tar.gz
   MemoryFree:
     source: https://github.com/mpflaga/Arduino-MemoryFree/archive/master.zip
+
+serial:
+  use_socat: yes
 
 buddies:
   guinea-pig:
@@ -225,7 +228,7 @@ def get_basic_config(args):
     ide_dir = get_ide_dir(basic_config['workdir'])
     ensure_dir('ide_dir', ide_dir)
     basic_config['ide_dir'] = ide_dir
-    basic_config['full_ide_dir'] = get_full_ide_dir(ide_dir, basic_config['arduino-version'])
+    basic_config['full_ide_dir'] = get_full_ide_dir(ide_dir, basic_config['arduino_version'])
 
     return basic_config
 
@@ -315,6 +318,11 @@ def get_arduino(args, config):
         * Start a socat proxy
         * Do not hang_up_on_close
     """
+    if not config['serial']['hang_up_on_close'] and config['serial']['use_socat']:
+        errmsg = "Will not handle 'use_socat:yes' in conjunction with 'hang_up_on_close:no'" \
+                 "Either set 'use_socat' to 'no' or 'hang_up_on_close' to 'yes'."
+        raise ArduinoConfigError(errmsg)
+
     aconfig = config['_arduino_']
     if config['serial']['use_socat'] and not args.flash:
         socat = find_executable('socat')
@@ -326,6 +334,9 @@ def get_arduino(args, config):
         is_proxy_start = False if os.path.exists(proxy_tty) else True
         # start the socat proxy
         if not os.path.exists(proxy_tty):
+            # Enforce hulpc:on
+            subprocess.check_output(['stty', '-F', aconfig['tty'], 'hupcl'])
+            time.sleep(1)
             socat_opts = {'baudrate': aconfig['baudrate'],
                           'source_tty': aconfig['tty'],
                           'proxy_tty': proxy_tty
@@ -339,11 +350,17 @@ def get_arduino(args, config):
         if os.path.exists(proxy_tty):
             arduino = Arduino(tty=proxy_tty, baudrate=aconfig['baudrate'],
                               pinfile=aconfig['pinfile'], model=aconfig['model'])
-            setattr(arduino, 'cli_mode', True)
-        if is_proxy_start:
-            setattr(arduino, 'cli_mode', False)
+            if not is_proxy_start:
+                setattr(arduino, 'cli_mode', True)
+                arduino.open_serial_connection()
+            elif is_proxy_start:
+                arduino.open_serial_connection()
+                setattr(arduino, 'cli_mode', True)
 
-        arduino.open_serial_connection()
+    elif not config['serial']['hang_up_on_close']:
+        # Switch hupcl (hang up on close) off to preserve the connection
+        subprocess.check_output(['stty', '-F', aconfig['tty'], '-hupcl'])
+        # Check, if (presumably) this connection needs initialisation or not
     else:
         arduino = Arduino(tty=aconfig['tty'], baudrate=aconfig['baudrate'],
                           pinfile=aconfig['pinfile'], model=aconfig['model'])
@@ -410,8 +427,7 @@ def check_ide_and_libs(config):  # pylint: disable=too-many-locals,too-many-bran
     mk_version = config['arduino_makefile_version']
     mk_dir_full = '/'.join((mk_dir, 'Arduino-Makefile-%s' % mk_version))
     # print colored("Checking for %s" % mk_dir_full, 'yellow')
-    if not os.path.isdir(mk_dir):
-        os.mkdir(mk_dir)
+    ensure_dir('arduino_mk', mk_dir)
 
     if not os.path.isdir(mk_dir_full):
         mk_tar = '/'.join((mk_dir, 'Arduino-Makefile-%s.tar.gz' % mk_version))
@@ -558,35 +574,27 @@ def main():  # pylint: disable=too-many-statements,too-many-branches,too-many-lo
 
     # try to open ~/.pyduin
 
-    if args.version:
-        versions()
+    try:
+        if args.version:
+            versions()
 
-    if args.install_dependencies:
-        try:
+        if args.install_dependencies:
             basic_config = get_basic_config(args)
             check_ide_and_libs(basic_config)
-        except ArduinoConfigError, error:
-            print colored(error, 'red')
-        sys.exit(0)
 
-    elif args.flash:
-        try:
+        elif args.flash:
             basic_config = get_basic_config(args)
             config = get_pyduin_userconfig(args, basic_config)
             check_ide_and_libs(config)
             update_firmware(args, config)
-        except ArduinoConfigError, error:
-            print colored(error, 'red')
-        sys.exit(0)
 
-    try:
         basic_config = get_basic_config(args)
         config = get_pyduin_userconfig(args, basic_config)
+
+        arduino = get_arduino(args, config)
     except ArduinoConfigError, error:
         print colored(error, 'red')
         sys.exit(1)
-
-    arduino = get_arduino(args, config)
 
     actions = ('free', 'version', 'high', 'low', 'state', 'mode')
 
