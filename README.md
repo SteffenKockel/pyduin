@@ -42,6 +42,7 @@ The first operation to use would be to install the needed dependencies in `~/.py
 ```
 arduino_cli.py --install-dependencies
 ```
+This currently does not install `socat`. To make meaningful use of the CLI features, the installation and usage of `soact` is recommendet. To activate usage, edit `~/.pyduin.yml` and set `use_socat` to `yes` (default). If `socat` is installed, a proxy will be started for every device that connections are made to. The pins get set up accordint to the pinfile and the inital modes get set on first conect. The following connections **do not reset the arduinos firmware**. The proxy will stop safely on device disconnect. The proxy will also be stopped for flashing.
 
 To connect to an arduino, it is necessary to specify the `baudrate`, `tty`, `model` and `pinfile` arguments. Since there are some defaults set (see: `arduino_cli.py --help`), only differing arguments need to be specified. The following call shows the default values for `baudrate` and `tty` ommited, but `pinfile` and `model` present. This means that implicitly `/dev/ttyUSB0` will be used and the connection speed will be `115200` baud.
 
@@ -78,11 +79,20 @@ If the `ino` option is ommitted, then the project firmware gets applied.
 
 #### Control the arduinos pins
 
-This feature is more to test pins than to be used in real applications. Opening a serial connection **resets most arduinos** unless there are hardware modifications applied. Currently not all operations are fully supported.
+This feature is more to test pins than to be used in real applications. Opening a serial connection **resets most arduinos** unless there are hardware modifications applied.
 ```
 arduino_cli.py --buddy uber --pin 4 --action high
 ```
+Also the pin mode can be set
+```
+arduino_cli.py --buddy uber --pin 4 --action mode --mode input
+```
 #### Get firmware version from the arduino
+
+```
+arduino_cli.py --buddy uber --action version
+```
+#### Get free memory from the arduino
 
 ```
 arduino_cli.py --buddy uber --action version
