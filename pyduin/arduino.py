@@ -65,11 +65,10 @@ class Arduino(object):  # pylint: disable=too-many-instance-attributes
                 time.sleep(1.5)
             self.setup_pins()
             self.ready = True
-            return True
         except serial.SerialException:
-            print "Could not open Serial connection on %s" % (self.tty)
             self.ready = False
-            return False
+            errmsg = "Could not open Serial connection on %s" % (self.tty)
+            raise ArduinoConfigError(errmsg)
 
     def setup_pins(self):
         """
