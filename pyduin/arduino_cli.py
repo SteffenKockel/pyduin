@@ -37,6 +37,7 @@ arduino_architecture: linux64 # linux[32|64|arm]
 arduino_src: https://downloads.arduino.cc/arduino-%(version)s-%(architecture)s.tar.xz
 pinfile_src: https://raw.githubusercontent.com/SteffenKockel/pyduin/master/pinfiles/%(model)s.yml
 arduino_version: 1.6.5-r5
+use_socat: yes
 libraries:
   DHT:
     source: https://github.com/adafruit/DHT-sensor-library/archive/1.2.3.tar.gz
@@ -469,6 +470,8 @@ def main():
     paa('-i', '--ino', default=False,
         help='.ino file to build and uplad.')
     paa('-m', '--model', default=False, help="Arduino model (e.g.: Nano, Uno)")
+    paa('-M', '--mode', default=False, choices=["input", "output", "input_pullup"],
+        help="Pin mode. 'input','output','input_pullup'")
     paa('-p', '--pin', default=False, type=int, help="The pin to do action x with.")
     paa('-P', '--pinfile', default=False,
         help="Pinfile to use (default: ~/.pyduin/pinfiles/<model>.yml")
@@ -513,16 +516,63 @@ def main():
 
     Arduino = get_arduino(args, config)
 
+    actions = ('free', 'version', 'high', 'low', 'state', 'mode')
+
     if args.action and args.action == 'free':
         print Arduino.get_free_memory()
         sys.exit(0)
     if args.action and args.action == 'version':
         print Arduino.get_firmware_version()
         sys.exit(0)
-    if args.action and args.action in ('high','low','state','mode'):
-        if args.pin in Arduino.Pins.keys():
+
+    try:
+        color = 'green'
+        if args.action and args.action.lower() not in actions:
+                raise ArduinoConfigError("Action '%s' is not available" % args.action)
+        if args.action and args.action in ('high','low','state'):
+            if not args.pin:
+                raise ArduinoConfigError("The requested --action requires a --pin. Aborting")
+            if not args.pin in Arduino.Pins.keys():
+                message = "Defined pin (%s) is not available. Check pinfile."
+                raise ArduinoConfigError(message % args.pin)
+
             pin = Arduino.Pins[args.pin]
-            print getattr(pin, args.action)()
+            action = getattr(pin, args.action)
+            result = action().split('%')
+            state = 'low' if int(result[-1]) == 0 else 'high'
+            err = False if args.action == 'high' and state == 'high' or \
+                  args.action == 'low' and state == 'low' else True
+            if err:
+                color = 'red'
+            print colored(state, color)
+            sys.exit(0 if not err else 1)
+
+        elif args.action and args.action == 'mode':
+            pinmodes = ('output', 'input', 'input_pullup', 'pwm')
+            if not args.mode:
+                raise ArduinoConfigError("'--action mode' needs '--mode <MODE>' to be specified")
+            if args.mode.lower() not in pinmodes:
+                raise ArduinoConfigError("Mode '%s' is not available." % args.mode )
+
+            Pin = Arduino.Pins[int(args.pin)]
+            if args.mode == 'pwm':
+                pass
+            else:
+                result = Pin.set_mode(args.mode).split('%')
+                err = False if args.mode == 'input' and int(result[-1]) == 0 or \
+                      args.mode == 'output' and int(result[-1]) == 1 or \
+                      args.mode == 'input_pullup' and int(result[-1]) == 2 else True
+
+                state = 'ERROR' if err else 'OK'
+                if err:
+                    color = 'red'
+                print colored(state, color)
+
+
+
+    except ArduinoConfigError, error:
+       print colored(error, 'red')
+       sys.exit(1)
 
     #print args
 
