@@ -1,4 +1,4 @@
-# pyduin 0.5.0
+# pyduin 0.5.1.dev
 
 ## What?
 
@@ -104,5 +104,5 @@ arduino_cli.py --buddy uber --action version
 #### Get free memory from the arduino
 
 ```
-arduino_cli.py --buddy uber --action version
+arduino_cli.py --buddy uber --action free
 ```
