@@ -193,8 +193,12 @@ def get_workdir(args, config):
 def ensure_dir(identifier, directory):
     """ Create directory if it does not exist. Identifier is used for message. """
     if not os.path.isdir(directory):
-        print colored("'%s' does not exist '%s'. Creating" % (identifier, directory), 'blue')
-        return os.mkdir(directory)
+        try:
+            os.mkdir(directory)
+            print colored("'%s' does not exist '%s'. Creating" % (identifier, directory), 'blue')
+        except OSError:
+            errmsg = "Could not create dir %s. Check permissions."
+            raise ArduinoConfigError(errmsg)
     return True
 
 
