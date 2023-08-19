@@ -21,21 +21,21 @@ class PWM(object):
         """
             Enable PWM for this pin
         """
-        print """ Enable pwm for pin with value %s""" % value
+        print(""" Enable pwm for pin with value %s""" % value)
         return True
 
     def disable(self):  # pylint: disable=no-self-use
         """
             Disable PWM for this pin
         """
-        print """ Disable pwm """
+        print(""" Disable pwm """)
         return True
 
     def state(self):  # pylint: disable=no-self-use
         """
             Determine PWM state and level
         """
-        print """ Get PWM state """
+        print(""" Get PWM state """)
         return True
 
 
@@ -62,7 +62,7 @@ class Mode(object):
             Set mode for this pin to output
         """
         self.wanted_mode = self.Pin.pin_mode = 'output'
-        print """%s OUTPUT""" % self._setpinmodetext
+        print("""%s OUTPUT""" % self._setpinmodetext)
         message = "<MO%02d001>" if self.analog_or_digital() == 'digital' else "<MO%s030>"
         message = message % self.Pin.pin_id
         self.Pin.pin_mode = 'output'
@@ -74,7 +74,7 @@ class Mode(object):
         """
         self.wanted_mode = self.Pin.pin_mode = 'input'
         self.wanted_mode = 'input'
-        print """%s INPUT""" % self._setpinmodetext
+        print("""%s INPUT""" % self._setpinmodetext)
         message = "<MI%02d000>" if self.analog_or_digital() == 'digital' else "<MI%s000>"
         message = message % self.Pin.pin_id
         self.Pin.pin_mode = 'input'
@@ -85,7 +85,7 @@ class Mode(object):
             Set mode for this pin to INPUT_PULLUP
         """
         self.wanted_mode = self.Pin.pin_mode = 'input_pullup'
-        print """%s INPUT_PULLUP""" % self._setpinmodetext
+        print("""%s INPUT_PULLUP""" % self._setpinmodetext)
         message = "<MP%02d000>" if self.analog_or_digital() == 'digital' else "<MP%s000>"
         message = message % self.Pin.pin_id
         self.Pin.pin_mode = 'input_pullup'
@@ -106,7 +106,7 @@ class Mode(object):
         modesetter = getattr(self, mode.lower(), False)
         if modesetter:
             return modesetter()
-        print "Could not set mode %s for pin %s" % (mode, self.Pin.pin_id)
+        print("Could not set mode %s for pin %s" % (mode, self.Pin.pin_id))
         return False
 
 

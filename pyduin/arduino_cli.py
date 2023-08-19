@@ -109,7 +109,7 @@ def get_file(source, target):
     """
     Download/copy a file from source to targer
     """
-    print colored("Getting %s from %s" % (target, source), 'blue')
+    print(colored("Getting %s from %s" % (target, source), 'blue'))
     source = os.path.expanduser(source) if source.startswith('~') else source
     if source.startswith('http'):
         res = requests.get(source)
@@ -168,7 +168,7 @@ def check_user_config_file(location):
     Check, if basic config file ~/.pyduin.yml exists
     """
     if not os.path.isfile(location):
-        print colored("Writing default config file to %s " % location, 'blue')
+        print(colored("Writing default config file to %s " % location, 'blue'))
         with open(location, 'w') as _configfile:
             _configfile.write(CONFIG_TEMPLATE)
 
@@ -195,7 +195,7 @@ def ensure_dir(identifier, directory):
     if not os.path.isdir(directory):
         try:
             os.mkdir(directory)
-            print colored("'%s' does not exist '%s'. Creating" % (identifier, directory), 'blue')
+            print(colored("'%s' does not exist '%s'. Creating" % (identifier, directory), 'blue'))
         except OSError:
             errmsg = "Could not create dir %s. Check permissions."
             raise ArduinoConfigError(errmsg)
@@ -307,7 +307,7 @@ def _get_arduino_config(args, config):
     if not os.path.isfile(arduino_config['pinfile']):
         try:
             get_file(config['pinfile_src'] % {'model': model}, pinfile)
-        except ArduinoConfigError, error:
+        except ArduinoConfigError as error:
             errmsg = "Cannot find/download pinfile for model '%s'. Error: %s" % (model, error)
             raise ArduinoConfigError(errmsg)
     return config
@@ -364,7 +364,7 @@ def get_arduino(args, config):
                          }
             socat_cmd = tuple([x % socat_opts for x in SOCAT_CMD])
             subprocess.Popen(socat_cmd)
-            print colored('Started socat proxy on %s' % proxy_tty, 'cyan')
+            print(colored('Started socat proxy on %s' % proxy_tty, 'cyan'))
             time.sleep(1)
 
         # Connect via socat proxy
@@ -402,20 +402,20 @@ def check_ide_and_libs(config):  # pylint: disable=too-many-locals,too-many-bran
     # print colored("Checking for arduino IDE %s in %s" % (aversion, full_ide_dir), 'yellow')
     if not os.path.isdir(full_ide_dir):
         msg = "Arduino ide version %s not present in %s. Downloading." % (aversion, full_ide_dir)
-        print colored(msg, 'yellow')
+        print(colored(msg, 'yellow'))
 
     target = '/'.join((config['ide_dir'], '%s.tar.xz' % aversion))
     if not os.path.isfile(target) and not os.path.isdir(full_ide_dir):
         url = config['arduino_src'] % {'architecture': config['arduino_architecture'],
                                        'version': config['arduino_version']}
-        print colored("Attempting to download arduin IDE from %s" % url, 'green')
+        print(colored("Attempting to download arduin IDE from %s" % url, 'green'))
         get_file(url, target)
 
     if os.path.isfile(target) and not os.path.isdir(full_ide_dir):
-        print colored("Extracting archive %s to %s" % (target, full_ide_dir), 'yellow')
+        print(colored("Extracting archive %s to %s" % (target, full_ide_dir), 'yellow'))
         extract_file(target, ide_dir)
     else:
-        print colored("Found arduino IDE in %s" % full_ide_dir, 'green')
+        print(colored("Found arduino IDE in %s" % full_ide_dir, 'green'))
 
     # Get libs as defined in .pyduin
     libdir = '/'.join((config['full_ide_dir'], 'user-libraries'))
@@ -423,7 +423,7 @@ def check_ide_and_libs(config):  # pylint: disable=too-many-locals,too-many-bran
     if not os.path.isdir(libdir):
         os.mkdir(libdir)
 
-    for library, libconf in config['libraries'].iteritems():
+    for library, libconf in config['libraries'].items():
         _libdir = '/'.join((libdir, library))
         # print colored("Checking for library %s" % _libdir, 'yellow')
         if not os.path.isdir(_libdir):
@@ -439,7 +439,7 @@ def check_ide_and_libs(config):  # pylint: disable=too-many-locals,too-many-bran
             # finally, extract the file
             extract_file(target, libdir, rebase='/'.join((libdir, library)))
         else:
-            print colored("Found library %s" % _libdir, 'green')
+            print(colored("Found library %s" % _libdir, 'green'))
 
     # Check, if Arduino.mk exists in the correct version. If not
     # download and extract it.
@@ -457,7 +457,7 @@ def check_ide_and_libs(config):  # pylint: disable=too-many-locals,too-many-bran
             get_file(url, mk_tar)
         extract_file(mk_tar, mk_dir)
     else:
-        print colored("Found %s" % mk_dir_full, 'green')
+        print(colored("Found %s" % mk_dir_full, 'green'))
 
 
 def update_firmware(args, config):  # pylint: disable=too-many-locals,too-many-statements
@@ -468,7 +468,7 @@ def update_firmware(args, config):  # pylint: disable=too-many-locals,too-many-s
 
     # Get the boards.txt. This file holds the mcu and board definition.
     flavour = args.flavour if args.flavour else config['buddies'][args.buddy]['flavour'] if \
-        config.get('buddies') and args.buddy in config['buddies'].keys() and \
+        config.get('buddies') and args.buddy in list(config['buddies'].keys()) and \
         config['buddies'][args.buddy].get('flavour') and args.buddy else False
     model = config['_arduino_']['model']
     # print config['_arduino_']
@@ -507,7 +507,7 @@ def update_firmware(args, config):  # pylint: disable=too-many-locals,too-many-s
     ensure_dir('tmpdir', tmpdir)
 
     makefilepath = '/'.join((tmpdir, 'Makefile'))
-    print colored("Writing makefile to %s" % makefilepath, 'blue')
+    print(colored("Writing makefile to %s" % makefilepath, 'blue'))
     if os.path.exists(makefilepath):
         os.remove(makefilepath)
     with open(makefilepath, 'w') as mkfile:
@@ -535,7 +535,7 @@ def update_firmware(args, config):  # pylint: disable=too-many-locals,too-many-s
 
     proxy_tty = _get_proxy_tty_name(config)
     if os.path.exists(proxy_tty):
-        print colored("Socat proxy running. Stopping.", 'red')
+        print(colored("Socat proxy running. Stopping.", 'red'))
         cmd = "ps aux | grep socat | grep -v grep | grep %s | awk '{ print $2 }'" % proxy_tty
         pid = subprocess.check_output(cmd, shell=True).strip()
         subprocess.check_output(['kill', '%s' % pid])
@@ -543,13 +543,13 @@ def update_firmware(args, config):  # pylint: disable=too-many-locals,too-many-s
 
     olddir = os.getcwd()
     os.chdir(tmpdir)
-    print colored("Running make clean", 'green')
+    print(colored("Running make clean", 'green'))
     subprocess.check_output(['make', 'clean'])
-    print colored("Running make", 'green')
+    print(colored("Running make", 'green'))
     subprocess.check_output(['make', '-j4'])
-    print colored("Running make upload", 'green')
+    print(colored("Running make upload", 'green'))
     subprocess.check_output(['make', 'upload'])
-    print colored("All Done!", "green")
+    print(colored("All Done!", "green"))
     os.chdir(olddir)
 
 
@@ -616,17 +616,17 @@ def main():  # pylint: disable=too-many-statements,too-many-branches,too-many-lo
         config = get_pyduin_userconfig(args, basic_config)
 
         arduino = get_arduino(args, config)
-    except ArduinoConfigError, error:
-        print colored(error, 'red')
+    except ArduinoConfigError as error:
+        print(colored(error, 'red'))
         sys.exit(1)
 
     actions = ('free', 'version', 'high', 'low', 'state', 'mode')
 
     if args.action and args.action == 'free':
-        print arduino.get_free_memory()
+        print(arduino.get_free_memory())
         sys.exit(0)
     if args.action and args.action == 'version':
-        print arduino.get_firmware_version()
+        print(arduino.get_firmware_version())
         sys.exit(0)
 
     try:
@@ -636,7 +636,7 @@ def main():  # pylint: disable=too-many-statements,too-many-branches,too-many-lo
         if args.action and args.action in ('high', 'low', 'state'):
             if not args.pin:
                 raise ArduinoConfigError("The requested --action requires a --pin. Aborting")
-            if not args.pin in arduino.Pins.keys():
+            if not args.pin in list(arduino.Pins.keys()):
                 message = "Defined pin (%s) is not available. Check pinfile."
                 raise ArduinoConfigError(message % args.pin)
 
@@ -648,7 +648,7 @@ def main():  # pylint: disable=too-many-statements,too-many-branches,too-many-lo
                   args.action == 'low' and state == 'low' else True
             if err:
                 color = 'red'
-            print colored(state, color)
+            print(colored(state, color))
             sys.exit(0 if not err else 1)
 
         elif args.action and args.action == 'mode':
@@ -670,10 +670,10 @@ def main():  # pylint: disable=too-many-statements,too-many-branches,too-many-lo
                 state = 'ERROR' if err else 'OK'
                 if err:
                     color = 'red'
-                print colored(state, color)
+                print(colored(state, color))
 
-    except ArduinoConfigError, error:
-        print colored(error, 'red')
+    except ArduinoConfigError as error:
+        print(colored(error, 'red'))
         sys.exit(1)
 
 

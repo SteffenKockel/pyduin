@@ -13,7 +13,7 @@ import time
 import serial
 import yaml
 
-from pin import ArduinoPin  # pylint: disable=relative-import
+from .pin import ArduinoPin  # pylint: disable=relative-import
 
 IMMEDIATE_RESPONSE = True
 
@@ -83,13 +83,13 @@ class Arduino(object):  # pylint: disable=too-many-instance-attributes
         with open(self._pinfile, 'r') as pinfile:
             self.pinfile = yaml.load(pinfile)
 
-        _Pins = sorted(self.pinfile['Pins'].items(),
+        _Pins = sorted(list(self.pinfile['Pins'].items()),
                        key=lambda x: int(x[1]['physical_id']))
 
         for name, pinconfig in _Pins:  # pylint: disable=unused-variable
             pin_id = pinconfig['physical_id']
             # Dont't register a pin twice
-            if pin_id in self.Pins.keys():
+            if pin_id in list(self.Pins.keys()):
                 continue
             Pin = ArduinoPin(self, pin_id, **pinconfig)
             # Determine capabilities
