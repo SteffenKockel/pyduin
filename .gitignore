@@ -22,8 +22,10 @@ COPYRIGHT
 *.pyc
 *~
 *.swp
+*.pio
 README.rst
 get-pip.py
+pyvenv.cfg
 pypy-5.0.1-linux_x86_64-portable.tar.bz2
 #project.cfg
 pip-selfcheck.json

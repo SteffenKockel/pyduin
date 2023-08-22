@@ -1,21 +1,26 @@
+""" setyp.py """
 from setuptools import setup, find_packages
 
 setup(name='pyduin',
-      version='0.5.0',
-      description='Extensive arduino abstraction',
+      version='0.6.1',
+      description='Extensive Arduino abstraction',
       url='http://github.com/SteffenKockel/pyduin',
       author='Steffen Kockel',
       author_email='info@steffen-kockel.de',
       license='GPLv3',
       packages=find_packages(),
+      package_dir={'pyduin': '.'},
+      package_data={ 'pyduin': ["pinfiles/*.yml"]},
       zip_safe=False,
       tests_require=['coverage', 'unittest2', 'mock', 'pylint', 'flake8'],
-      install_requires=['pyserial', 'PyYAML', 'requests', 'pyliblzma', 'termcolor'],
-      python_requires='>2.6, <3',
-      scripts=['pyduin/arduino_cli.py'],
-      data_files=[('pinfiles',['pinfiles/nano.yml', 'pinfiles/uno.yml']),
-      			  ('ino', ['ino/pyduin.ino'])
-      	],
+      install_requires=['pyserial', 'PyYAML', 'requests', 'termcolor', 'platformio', 'serial'],
+      python_requires='>3',
+      entry_points={
+      	'console_scripts':
+      		['arduino=pyduin.arduino_cli:main']
+      	},
+      include_package_data=True,
+      data_files=[('.ino', ['ino/pyduin.ino'])],
       classifiers=[
 	    # How mature is this project? Common values are
 	    #   3 - Alpha
@@ -31,7 +36,7 @@ setup(name='pyduin',
 
 	    # Specify the Python versions you support here. In particular, ensure
 	    # that you indicate whether you support Python 2, Python 3 or both.
-	    'Programming Language :: Python :: 2.7',
+	    'Programming Language :: Python :: 3',
 		],
 	  project_urls={
 	    'Documentation': 'http://github.com/SteffenKockel/pyduin',

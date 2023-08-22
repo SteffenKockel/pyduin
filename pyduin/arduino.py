@@ -13,7 +13,7 @@ import time
 import serial
 import yaml
 
-from .pin import ArduinoPin  # pylint: disable=relative-import
+from .pin import ArduinoPin
 
 IMMEDIATE_RESPONSE = True
 
@@ -22,10 +22,10 @@ class ArduinoConfigError(BaseException):
     """
         Error Class to throw on config errors
     """
-    pass
 
 
-class Arduino(object):  # pylint: disable=too-many-instance-attributes
+
+class Arduino:  # pylint: disable=too-many-instance-attributes
     """
         Arduino object that can send messages to any arduino
     """
@@ -49,10 +49,10 @@ class Arduino(object):  # pylint: disable=too-many-instance-attributes
         if not self.model or not self.tty or not self.baudrate or not self._pinfile:
             mandatory = ('model', 'tty', 'baudrate', '_pinfile')
             missing = [x.lstrip('_') for x in mandatory if not getattr(self, x)]
-            raise ArduinoConfigError("The following mandatory options are missing: %s" % missing)
+            raise ArduinoConfigError(f'The following mandatory options are missing: {missing}')
 
         if not os.path.isfile(self._pinfile):
-            raise ArduinoConfigError("Cannot open pinfile: %s" % self._pinfile)
+            raise ArduinoConfigError(f'Cannot open pinfile: {self._pinfile}')
 
     def open_serial_connection(self):
         """
@@ -67,7 +67,7 @@ class Arduino(object):  # pylint: disable=too-many-instance-attributes
             self.ready = True
         except serial.SerialException:
             self.ready = False
-            errmsg = "Could not open Serial connection on %s" % (self.tty)
+            errmsg = f'Could not open Serial connection on {self.tty}'
             raise ArduinoConfigError(errmsg)
 
     def setup_pins(self):
@@ -80,8 +80,8 @@ class Arduino(object):  # pylint: disable=too-many-instance-attributes
         self.Pins = OrderedDict()
         self.Busses = {}
 
-        with open(self._pinfile, 'r') as pinfile:
-            self.pinfile = yaml.load(pinfile)
+        with open(self._pinfile, 'r', encoding='utf-8') as pinfile:
+            self.pinfile = yaml.load(pinfile, Loader=yaml.Loader)
 
         _Pins = sorted(list(self.pinfile['Pins'].items()),
                        key=lambda x: int(x[1]['physical_id']))
@@ -112,11 +112,12 @@ class Arduino(object):  # pylint: disable=too-many-instance-attributes
         """
             Send a serial message to the arduino.
         """
-        self.Connection.write(message)
+        self.Connection.write(message.encode('utf-8'))
         if self.cli_mode:
-            msg = self.Connection.readline().strip()
+            msg = self.Connection.readline().decode('utf-8').strip()
             if msg == "Boot complete":
-                msg = self.Connection.readline().strip()
+                print("Boot msg received")
+                msg = self.Connection.readline().decode('utf-8').strip()
             return msg
         return True
 
