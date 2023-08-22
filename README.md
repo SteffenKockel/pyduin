@@ -2,28 +2,32 @@
 
 ## What?
 
-A pyhton wrapper for arduino. It consists of two parts
+A pyhton wrapper for Arduino and other IOT devices such as ESP. It aims to support everything, that platformio supports. It consists of two parts
 
 * A python library for arduino, pin, pinmode
-* An arduino firmware
+* A firmware to be loaded onto the device
 
-## What for?
+### What for?
 
-To interact seamless with an arduino from within python. Once an arduino has the correct firmware applied, one can set pin modes, pin states, pwm values and more. It can
+To interact seamless with an Arduino from within python. Once an Arduino has the correct firmware applied, one can set pin modes, pin states, pwm values and more. It can
 
-* Download dependencies (IDE, libraries, Arduino.mk)
-* Flash arduinos
-* Control arduino pins (if flashed with `pyduin.ino`)
+This makes it easy to wire a sensor to an IOT device, connect it to the computer and start working with the sensor values in Python. The library supports:
 
-The code is als intended to be used and originates from a [crossbar.io](https://crossbar.io) prowered server that constantly holds the Serial connection to the arduino and converts the output to JSON. The CLI wrapper was written to ease the arduino handling in the context of python based projects.
+- Analog read and write
+- Digital read and write
+- OneWire
+- 
+### Installation
 
-## How to install?
+Only `pip` installs are available.
 
-Currently, only pip installs are available. At least Debian distributions are planned to get a package.
 ```bash
 pip install pyduin
 ```
-### As python module
+
+## Usage
+
+## As python module
 
 After installation the `pyduin` module can be imported.
 ```python
@@ -35,7 +39,7 @@ Arduino.Pins[13].set_mode('OUTPUT')
 Arduino.Pins[13].high()
 free_mem = Arduino.get_free_memory()
 ```
-### Using the CLI
+## CLI
 
 The first operation to use would be to install the needed dependencies in `~/.pyduin/`. The following command creates `~/.pyduin.yml` if it does not exist, downloads the arduino IDE defined in `~/pyduin.yml`, and also downloads the libraries defined in `~./pyduin.yml`.
 
