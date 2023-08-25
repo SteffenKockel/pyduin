@@ -18,6 +18,7 @@ import yaml
 from termcolor import colored
 
 from pyduin.arduino import Arduino, ArduinoConfigError
+from pyduin import _utils as utils
 
 # Basic user config template
 
@@ -34,16 +35,6 @@ buddies:
     board: uno
 """
 
-SOCAT_CMD_DEBUG = \
-    ('/usr/bin/socat', '-x', '-s', '-ddd' '-ddd',
-     '%(source_tty)s,b%(baudrate)s,cs8,parenb=0,cstopb=0,clocal=0,raw,echo=0,setlk,flock-ex-nb,nonblock=1',
-     'PTY,link=%(proxy_tty)s,b%(baudrate)s,cs8,parenb=0,cstopb=0,clocal=0,raw,echo=0,setlk,flock-ex-nb,nonblock=1')
-
-SOCAT_CMD = \
-    ('/usr/bin/socat', '-s', '-d',
-     '%(source_tty)s,b%(baudrate)s,cs8,parenb=0,cstopb=0,clocal=0,raw,echo=0,setlk,flock-ex-nb,nonblock=1',
-     'PTY,link=%(proxy_tty)s,b%(baudrate)s,cs8,parenb=0,cstopb=0,clocal=0,raw,echo=0,setlk,flock-ex-nb,nonblock=1')
-
 class AttrDict(dict):
     """ Helper class to ease the handling of ini files with configparser. """
     def __init__(self, *args, **kwargs):
@@ -58,7 +49,7 @@ def ensure_user_config_file(location):
     """
     if not os.path.isfile(location):
         logging.info('Writing default config file to %s', location)
-        with open(location, 'w') as _configfile:
+        with open(location, 'w', encoding='utf-8') as _configfile:
             _configfile.write(CONFIG_TEMPLATE)
 
 def get_basic_config(args):
@@ -72,20 +63,16 @@ def get_basic_config(args):
         cfg = yaml.load(_configfile, Loader=yaml.Loader)
     logging.debug("Using configuration file: %s", confpath)
 
-    package_root = os.path.dirname(os.path.dirname(__file__))
-    platformio_ini = args.platformio_ini or \
-        '/'.join((package_root, 'platformio.ini'))
+    platformio_ini = args.platformio_ini or utils.platformio_ini
     logging.debug("Using platformio.ini in: %s", platformio_ini)
     parser = configparser.ConfigParser(dict_type=AttrDict)
     parser.read(platformio_ini)
     cfg['platformio_ini'] = parser
 
-    cfg['firmware'] = args.firmware or \
-        '/'.join((package_root, 'ino/pyduin.ino'))
+    cfg['firmware'] = args.firmware or utils.firmware
     logging.debug("Using firmware from: %s", cfg['firmware'])
 
-    cfg['pinfiledir'] = args.pinfile_dir or \
-        '/'.join((package_root, 'pinfiles'))
+    cfg['pinfiledir'] = args.pinfile_dir or utils.pinfiledir
     logging.debug("Using pinfiles from: %s", cfg['pinfiledir'])
     return cfg
 
@@ -118,7 +105,6 @@ def _get_arduino_config(args, config):
     check_board_support(model, config)
     logging.debug("Using pinfile: %s", arduino_config['pinfile'])
 
-    # If no pinfile can be found, attempt to download one from github.
     if not os.path.isfile(arduino_config['pinfile']):
         errmsg = f'Cannot find pinfile {arduino_config["pinfile"]}'
         raise ArduinoConfigError(errmsg)
@@ -186,41 +172,28 @@ def get_arduino(args, config):
     if config['serial']['use_socat'] and not args.flash:
         proxy_tty = _get_proxy_tty_name(config)
 
-        is_proxy_start = False if os.path.exists(proxy_tty) else True
+        #is_proxy_start = not os.path.exists(proxy_tty)
         # start the socat proxy
         if not os.path.exists(proxy_tty):
             # Enforce hulpc:on
             subprocess.check_output(['stty', '-F', aconfig['tty'], 'hupcl'])
-            time.sleep(1)
+            #time.sleep(1)
             socat_opts = {'baudrate': aconfig['baudrate'],
                           'source_tty': aconfig['tty'],
-                          'proxy_tty': proxy_tty
+                          'proxy_tty': proxy_tty,
+                          'debug': False
                          }
-            socat_cmd = tuple([x % socat_opts for x in SOCAT_CMD])
-            subprocess.Popen(socat_cmd)
-            print(colored('Started socat proxy on %s' % proxy_tty, 'cyan'))
+            socat_cmd = utils.socat_cmd(**socat_opts)
+            print(socat_cmd)
+            subprocess.Popen(socat_cmd) # pylint: disable=consider-using-with
+            print(colored(f'Started socat proxy on {proxy_tty}', 'cyan'))
             time.sleep(1)
 
-        # Connect via socat proxy
-        if os.path.exists(proxy_tty):
-            arduino = Arduino(tty=proxy_tty, baudrate=aconfig['baudrate'],
-                              pinfile=aconfig['pinfile'], model=aconfig['board'])
-            if not is_proxy_start:
-                setattr(arduino, 'cli_mode', True)
-                arduino.open_serial_connection()
-            elif is_proxy_start:
-                arduino.open_serial_connection()
-                setattr(arduino, 'cli_mode', True)
+        aconfig['tty'] = proxy_tty
 
-    # elif not config['serial']['hang_up_on_close']:
-    #     # Switch hupcl (hang up on close) off to preserve the connection
-    #     subprocess.check_output(['stty', '-F', aconfig['tty'], '-hupcl'])
-    #     # Check, if (presumably) this connection needs initialisation or not
-    else:
-        arduino = Arduino(tty=aconfig['tty'], baudrate=aconfig['baudrate'],
-                      pinfile=aconfig['pinfile'], model=aconfig['board'])
-        setattr(arduino, 'cli_mode', True)
-        arduino.open_serial_connection()
+    arduino = Arduino(tty=aconfig['tty'], baudrate=aconfig['baudrate'],
+                  pinfile=aconfig['pinfile'], board=aconfig['board'],
+                  cli=True)
     return arduino
 
 @staticmethod

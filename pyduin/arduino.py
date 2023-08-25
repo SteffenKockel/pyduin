@@ -8,12 +8,12 @@
 """
 from collections import OrderedDict
 import os
-import time
 
 import serial
 import yaml
 
-from .pin import ArduinoPin
+from pyduin.pin import ArduinoPin
+from pyduin import _utils as utils
 
 IMMEDIATE_RESPONSE = True
 
@@ -22,8 +22,6 @@ class ArduinoConfigError(BaseException):
     """
         Error Class to throw on config errors
     """
-
-
 
 class Arduino:  # pylint: disable=too-many-instance-attributes
     """
@@ -37,22 +35,26 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
     Busses = False
     pinfile = False
 
-    def __init__(self, tty=False, baudrate=False, model=False, pinfile=False, **config):
-        _model = config['model'].lower() if config.get('model') else False
-        self.model = model.lower() if model else _model  # pylint: disable=maybe-no-member
-        self.tty = tty if tty else config.get('tty', False)
-        self.baudrate = baudrate if baudrate else config.get('baudrate', False)
-        self._pinfile = pinfile if pinfile else config.get('pinfile', False)
+    def __init__(self,  board=False, tty='/dev/ttyUSB0', baudrate=115200, pinfile=False,
+                 serial_timeout=3, cli=False):  # pylint: disable=too-many-arguments
+        self.board = board
+        self.tty = tty
+        self.baudrate = baudrate
+        self._pinfile = pinfile or utils.board_pinfile(board)
         self.ready = False
-        self.cli_mode = False
+        self.cli = cli
+        self.serial_timeout = serial_timeout
 
-        if not self.model or not self.tty or not self.baudrate or not self._pinfile:
-            mandatory = ('model', 'tty', 'baudrate', '_pinfile')
-            missing = [x.lstrip('_') for x in mandatory if not getattr(self, x)]
-            raise ArduinoConfigError(f'The following mandatory options are missing: {missing}')
+        # if not self.board or not self.tty or not self.baudrate or not self._pinfile:
+        #     mandatory = ('board', 'tty', 'baudrate', '_pinfile')
+        #     missing = [x.lstrip('_') for x in mandatory if not getattr(self, x)]
+        #     raise ArduinoConfigError(f'The following mandatory options are missing: {missing}')
 
         if not os.path.isfile(self._pinfile):
             raise ArduinoConfigError(f'Cannot open pinfile: {self._pinfile}')
+
+        if self.cli:
+            self.open_serial_connection()
 
     def open_serial_connection(self):
         """
@@ -60,9 +62,9 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
             according to pinfile.
         """
         try:
-            self.Connection = serial.Serial(self.tty, self.baudrate, timeout=3)  # pylint: disable=invalid-name
-            if not self.cli_mode:
-                time.sleep(1.5)
+            self.Connection = serial.Serial(self.tty, self.baudrate, timeout=self.serial_timeout)  # pylint: disable=invalid-name
+            #if self.cli==False and self.use_socat==False:
+            #time.sleep(1)
             self.setup_pins()
             self.ready = True
         except serial.SerialException:
@@ -113,10 +115,13 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
             Send a serial message to the arduino.
         """
         self.Connection.write(message.encode('utf-8'))
-        if self.cli_mode:
+        if self.cli:
             msg = self.Connection.readline().decode('utf-8').strip()
             if msg == "Boot complete":
-                print("Boot msg received")
+                # It seems, we need to re-send, if the first thing we see
+                # is the boot-complete. Before, the Serial does not seem
+                # to be up reliably.
+                self.Connection.write(message.encode('utf-8'))
                 msg = self.Connection.readline().decode('utf-8').strip()
             return msg
         return True
@@ -126,7 +131,7 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
             Get arduino firmware version
         """
         res = self.send("<zv00000>")
-        if self.cli_mode:
+        if self.cli:
             return res.split("%")[-1]
         return True
 
@@ -135,6 +140,6 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
             Return the free memory from the arduino
         """
         res = self.send("<zz00000>")
-        if self.cli_mode:
+        if self.cli:
             return res.split("%")[-1]
         return res
