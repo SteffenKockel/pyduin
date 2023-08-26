@@ -56,10 +56,10 @@ free_mem = Arduino.get_free_memory()
 
 The following command turns on the onboard LED on an Arduino Nano
 ```
-arduino -t /dev/ttyUSB0 --model nanoatmega328 --action high --pin 13 
+pyduin -t /dev/ttyUSB0 --board nanoatmega328 pin 13 high 
 ```
 
-To connect to a device, it is necessary to specify the `baudrate`, `tty` and `model`(board) arguments. Since there are some defaults set (see: `arduino_cli.py --help`), only differing arguments need to be specified. The following call shows the default values for `baudrate` and `tty` ommited, but `pinfile` and `model` present. This means that implicitly `/dev/ttyUSB0` will be used and the connection speed will be `115200` baud.
+To connect to a device, it is necessary to specify the `baudrate`, `tty` and `model`(board) arguments. Since there are some defaults set (see: `pyduin --help`), only differing arguments need to be specified. The following call shows the default values for `baudrate` and `tty` ommited, but `pinfile` and `model` present. This means that implicitly `/dev/ttyUSB0` will be used and the connection speed will be `115200` baud.
 
 #### The buddy list
 
@@ -74,36 +74,41 @@ buddies:
     ino: ~/arduino-sketchbook/uber/uber.ino # optional
 ```
 
+```
+pyduin -B uber pin 13 high
+```
+## 
+
 #### Flashing firmware to the arduino
 
 Then the buddies can be addressed with the `-B` option. The following example would build the `.ino` file from the example above and flash it to the arduino. 
 ```
-arduino_cli.py --buddy uber --flash
+pyduin -B uber flash
 ```
 It can also be done without the buddy list.
 ```
-arduino_cli.py --board nanoatmega328 --flash --ino ~/inodev/devel.ino
+pyduin --board nanoatmega328 --tty=/dev/mytty flash
 ```
 
-If the `--ino` option is ommitted, then the project firmware gets applied.
+If the `--firmware` option is ommitted, then the project firmware gets applied.
 
 #### Control the arduinos pins
 
 Opening a serial connection **resets most arduinos**. `pyduin` circumvents this drawback with a `socat` proxy. Also another variant (`hupcl:off`) is in the pipeline. The difference is, that `socat` will set all pin modes on startup while the `hupcl` approach will require the user to set the pin mode manually. The big plus of the `hupcl` approach independence of third party applications.
 ```
-arduino_cli.py --buddy uber --pin 4 --action high
+pyduin --buddy uber pin 4 {high|low}
 ```
 Also the pin mode can be set
 ```
-arduino_cli.py --buddy uber --pin 4 --action mode --mode input
+pyduin -B uber pin 4 mode {input|ouput|input_pullup,pwm}
 ```
 #### Get firmware version from the arduino
 
 ```
-arduino_cli.py --buddy uber --action version
+pyduin --buddy uber --action version
 ```
 #### Get free memory from the arduino
 
 ```
-arduino_cli.py --buddy uber --action free
+pyduin --buddy uber --action free
 ```

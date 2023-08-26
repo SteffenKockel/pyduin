@@ -103,10 +103,12 @@ class Mode(object):
         """
             Sets the pin mode for this Pin
         """
+        if mode == 'pwm':
+            mode = 'output'
         modesetter = getattr(self, mode.lower(), False)
         if modesetter:
             return modesetter()
-        print("Could not set mode %s for pin %s" % (mode, self.Pin.pin_id))
+        print("Could not set mode %s for pin %s", mode, self.Pin.pin_id)
         return False
 
 

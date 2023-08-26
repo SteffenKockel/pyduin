@@ -1,5 +1,23 @@
 """ Useful functions to save redundant code """
 import os
+import logging
+# Basic user config template
+
+CONFIG_TEMPLATE = """
+
+serial:
+  use_socat: no
+  hang_up_on_close: no
+
+buddies:
+  nano1:
+    board: nanoatmega238
+    use_socat: yes
+    tty: /dev/ttyUSB1
+  uno1:
+    board: uno
+"""
+
 
 class PyduinUtils:
     """ Wrapper for some useful functions. Exists, to be able to make
@@ -44,3 +62,31 @@ class PyduinUtils:
         cmd.extend([f'{source_tty},b{baudrate},{common_opts}',
                     f'PTY,link={proxy_tty},b{baudrate},{common_opts}'])
         return (*cmd,)
+
+    @staticmethod
+    def ensure_user_config_file(location):
+        """ Check, if basic config file ~/.pyduin.yml exists, else create
+        basic config from template.
+        """
+        if not os.path.isfile(location):
+            logging.info('Writing default config file to %s', location)
+            with open(location, 'w', encoding='utf-8') as _configfile:
+                _configfile.write(CONFIG_TEMPLATE)
+
+    @staticmethod
+    def get_buddy_cfg(config, buddy, key=False):
+        """ Return the board used for a specific command. """
+        if buddy:
+            try:
+                if not key:
+                    return config['buddies'][buddy]
+                return config['buddies'][buddy][key]
+            except KeyError:
+                return False
+        return False
+
+class AttrDict(dict):
+    """ Helper class to ease the handling of ini files with configparser. """
+    def __init__(self, *args, **kwargs):
+        super(AttrDict, self).__init__(*args, **kwargs)
+        self.__dict__ = self

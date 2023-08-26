@@ -19,38 +19,10 @@ from termcolor import colored
 
 from pyduin.arduino import Arduino, ArduinoConfigError
 from pyduin import _utils as utils
+from pyduin import AttrDict
 
-# Basic user config template
+logger = logging.getLogger('pyduin')
 
-CONFIG_TEMPLATE = """
-
-serial:
-  use_socat: no
-  hang_up_on_close: no
-
-buddies:
-  nano1:
-    board: nanoatmega238
-  uno1:
-    board: uno
-"""
-
-class AttrDict(dict):
-    """ Helper class to ease the handling of ini files with configparser. """
-    def __init__(self, *args, **kwargs):
-        super(AttrDict, self).__init__(*args, **kwargs)
-        self.__dict__ = self
-
-
-def ensure_user_config_file(location):
-    """
-    Check, if basic config file ~/.pyduin.yml exists, else create basic config
-    from template.
-    """
-    if not os.path.isfile(location):
-        logging.info('Writing default config file to %s', location)
-        with open(location, 'w', encoding='utf-8') as _configfile:
-            _configfile.write(CONFIG_TEMPLATE)
 
 def get_basic_config(args):
     """
@@ -58,22 +30,29 @@ def get_basic_config(args):
     """
     configfile = args.configfile or '~/.pyduin.yml'
     confpath = os.path.expanduser(configfile)
-    ensure_user_config_file(confpath)
+    utils.ensure_user_config_file(confpath)
     with open(confpath, 'r', encoding='utf-8') as _configfile:
         cfg = yaml.load(_configfile, Loader=yaml.Loader)
-    logging.debug("Using configuration file: %s", confpath)
+    logger.debug("Using configuration file: %s", confpath)
 
     platformio_ini = args.platformio_ini or utils.platformio_ini
-    logging.debug("Using platformio.ini in: %s", platformio_ini)
+    logger.debug("Using platformio.ini in: %s", platformio_ini)
     parser = configparser.ConfigParser(dict_type=AttrDict)
     parser.read(platformio_ini)
     cfg['platformio_ini'] = parser
 
-    cfg['firmware'] = args.firmware or utils.firmware
-    logging.debug("Using firmware from: %s", cfg['firmware'])
+    cfg['firmware'] = getattr(args, "firmware_file", False) or utils.firmware
+    logger.debug("Using firmware from: %s", cfg['firmware'])
 
-    cfg['pinfiledir'] = args.pinfile_dir or utils.pinfiledir
-    logging.debug("Using pinfiles from: %s", cfg['pinfiledir'])
+    board = args.board or utils.get_buddy_cfg(cfg, args.buddy, 'board')
+
+    if board:
+        cfg['pinfile'] = args.pinfile or utils.board_pinfile(board)
+        logger.debug("Using pinfile from: %s", cfg['pinfile'])
+        cfg['board'] = board
+    else:
+        logger.error("Cannot determine pinfile: %s", board)
+        cfg['pinfile'] = False
     return cfg
 
 def _get_arduino_config(args, config):
@@ -82,12 +61,14 @@ def _get_arduino_config(args, config):
     """
     arduino_config = {}
     for opt in ('tty', 'baudrate', 'board', 'pinfile'):
-        _opt = getattr(args, opt) if getattr(args, opt) else \
-               config['buddies'][args.buddy][opt] if \
-               args.buddy and config.get('buddies') and \
-               config['buddies'].get(args.buddy) and \
-               config['buddies'][args.buddy].get(opt) else False
+        _opt = getattr(args, opt)
         arduino_config[opt] = _opt
+        if not _opt:
+            try:
+                _opt = config['buddies'][args.buddy][opt]
+                arduino_config[opt] = _opt
+            except KeyError:
+                logger.debug("%s not set in buddylist", opt)
 
     # Ensure defaults.
     if not arduino_config.get('tty'):
@@ -95,15 +76,13 @@ def _get_arduino_config(args, config):
     if not arduino_config.get('baudrate'):
         arduino_config['baudrate'] = 115200
     if not arduino_config.get('pinfile'):
-        pinfile = '/'.join((config['pinfiledir'], f'{arduino_config["board"]}.yml'))
+        pinfile = os.path.join(utils.pinfiledir, f'{arduino_config["board"]}.yml')
         arduino_config['pinfile'] = pinfile
 
-    # Ensure buddies section exists, even if empty
-    config['buddies'] = config.get('buddies', {})
     config['_arduino_'] = arduino_config
     model = config['_arduino_']['board']
     check_board_support(model, config)
-    logging.debug("Using pinfile: %s", arduino_config['pinfile'])
+    logger.debug("Using pinfile: %s", arduino_config['pinfile'])
 
     if not os.path.isfile(arduino_config['pinfile']):
         errmsg = f'Cannot find pinfile {arduino_config["pinfile"]}'
@@ -118,7 +97,7 @@ def verify_buddy(buddy, config):
     if not config.get('buddies'):
         raise ArduinoConfigError("Configfile is missing 'buddies' section")
     if not config['buddies'].get(buddy):
-        errmsg = f'Buddy "{buddy}" not described in configfile''s "buddies" section'
+        errmsg = f'Buddy "{buddy}" not described in configfile\'s "buddies" section. Aborting.'
         raise ArduinoConfigError(errmsg)
     return True
 
@@ -131,7 +110,7 @@ def check_board_support(board, config):
     sections = config['platformio_ini'].sections()
     boards = [x.split(':')[-1] for x in sections if x.startswith('env:')]
     if not board in boards:
-        logging.error("Board (%s) not in supported boards list %s",
+        logger.error("Board (%s) not in supported boards list %s",
             board, boards)
         return False
     return True
@@ -169,7 +148,7 @@ def get_arduino(args, config):
         raise ArduinoConfigError(errmsg)
 
     aconfig = config['_arduino_']
-    if config['serial']['use_socat'] and not args.flash:
+    if config['serial']['use_socat'] and args.cmd != 'flash':
         proxy_tty = _get_proxy_tty_name(config)
 
         #is_proxy_start = not os.path.exists(proxy_tty)
@@ -196,7 +175,6 @@ def get_arduino(args, config):
                   cli=True)
     return arduino
 
-@staticmethod
 def check_dependencies():
     """
         Check, if platformio and socat are available.
@@ -204,39 +182,36 @@ def check_dependencies():
     ret = True
     pio = which('pio')
     if pio:
-        logging.debug("Platformio found in %s.", pio)
+        logger.info("Platformio found in %s.", pio)
     else:
-        logging.warning("Platformio not installed. Flashing does not work.")
+        logger.warning("Platformio not installed. Flashing does not work.")
         ret = False
     socat = which('socat')
     if socat:
-        logging.debug("Socat found in %s", socat)
+        logger.info("Socat found in %s", socat)
     else:
-        logging.warning("Socat not found. Some features may not work.")
+        logger.warning("Socat not found. Some features may not work.")
         ret = False
     return ret
 
 
 
-def update_firmware(args, config):  # pylint: disable=too-many-locals,too-many-statements
+def update_firmware(config):  # pylint: disable=too-many-locals,too-many-statements
     """
         Update firmware on arduino (cmmi!)
     """
-
-    if not os.path.exists(config['_arduino_']['tty']):
-        errmsg = f'{config["_arduino_"]["tty"]} not found. Connected?'
-        raise ArduinoConfigError(errmsg)
-
     proxy_tty = _get_proxy_tty_name(config)
     if os.path.exists(proxy_tty):
         print(colored("Socat proxy running. Stopping.", 'red'))
-        cmd = f'ps aux | grep socat | grep -v grep | grep {proxy_tty} | awk ''{ print $2 }'''
+        cmd = f'ps aux | grep socat | grep -v grep | grep {proxy_tty} | awk '+"'{ print $2 }'"
         pid = subprocess.check_output(cmd, shell=True).strip()
-        subprocess.check_output(['kill', f'{pid}'])
+        subprocess.check_output(['kill', f'{pid.decode()}'])
         time.sleep(1)
 
-    out = subprocess.check_output(['pio', '-e', args.model, 'upload'])
-    logging.info(out)
+    print(config["_arduino_"])
+    out = subprocess.check_output(['pio', 'run', '-e', config['_arduino_']['board'], '-t',
+                                   'upload', '--upload-port', config['_arduino_']['tty']])
+    print(out)
 
 
 def versions():
@@ -244,124 +219,108 @@ def versions():
         Print both firmware and package version
     """
 
-def main():
+def main(): # pylint: disable=too-many-locals,too-many-statements
     """
         Evaluate user arguments and determine task
     """
-    parser = argparse.ArgumentParser(description='Manage arduino from command line.')
+    parser = argparse.ArgumentParser(prog="pyduin")
     paa = parser.add_argument
-    paa('-a', '--action', default=False, type=str, help="Action, e.g 'high', 'low'")
-    paa('-b', '--baudrate', default=False, help="Connection speed (default: 115200)")
-    paa('-B', '--buddy', type=str, default=False,
-        help="Use identifier from configfile for detailed configuration")
+    paa('-B', '--buddy', help="Use identifier from configfile for detailed configuration")
+    paa('-b', '--board', default=False, help="Board name")
     paa('-c', '--configfile', type=argparse.FileType('r'), default=False,
         help="Alternate configfile (default: ~/.pyduin.yml)")
-    paa('-f', '--flash', action='store_true', default=False,
-        help="Flash firmware to the arduino (cmmi)")
-    paa('-d', '--pinfile-dir')
-    paa('-D', '--install-dependencies', action='store_true',
-        help='Download and install dependencies according to ~/.pyduin.yml')
-    paa('-F', '--firmware', default=False, type=argparse.FileType('r'),
-        help="Alternate Firmware file.")
-    paa('-i', '--ino', default=False,
-        help='.ino file to build and uplad.')
     paa('-I', '--platformio-ini', default=False, type=argparse.FileType('r'),
         help="Specify an alternate platformio.ini")
-    paa('-l', '--log-level', default="DEBUG")
-    paa('-m', '--board', default=False, help="Board name")
-    paa('-M', '--mode', default=False, choices=["input", "output", "input_pullup"],
-        help="Pin mode. 'input','output','input_pullup'")
-    paa('-p', '--pin', default=False, type=int, help="The pin to do action x with.")
-    paa('-P', '--pinfile', default=False,
-        help="Pinfile to use (default: <package_install_dir>/pinfiles/*.yml")
+    paa('-l', '--log-level', default="debug")
+    paa('-p', '--pinfile', default=False,
+        help="Pinfile to use (default: <package_install_dir>/pinfiles/<board>.yml")
+    paa('-s', '--baudrate', type=int, default=False)
     paa('-t', '--tty', default=False, help="Arduino tty (default: '/dev/ttyUSB0')")
-    paa('-v', '--version', action='store_true', help='Show version info and exit')
-    paa('-w', '--workdir', type=str, default=False,
-        help="Alternate workdir path (default: ~/.pyduin)")
+
+    subparsers = parser.add_subparsers(help="Available sub-commands", dest="cmd")
+
+    flash_parser = subparsers.add_parser("flash", help="Flash firmware onto device")
+    flash_parser.add_argument('--dry-run', action="store_true")
+    flash_parser.add_argument('-F', '--firmware-file', default=False, type=argparse.FileType('r'),
+                              help="Alternate Firmware file.")
+
+    dependencies_parser = subparsers.add_parser("dependencies", help="Check dependencies") # pylint: disable=unused-variable
+    # dependencies_parser.add_argument('-i', '--install', help="Install missing dependencies",
+    #                                   action='store_true')
+
+    version_parser = subparsers.add_parser("versions", help="List versions")  # pylint: disable=unused-variable
+    freemem_parser = subparsers.add_parser("free", help="Get free memory from device") # pylint: disable=unused-variable
+    firmware_parser = subparsers.add_parser("firmware", help="Firmware options")
+    firmwaresubparsers = firmware_parser.add_subparsers(help='Available sub-commands', dest="fwcmd")
+    firmwareversion_parser = firmwaresubparsers.add_parser('version')
+    firmwareversion_subparsers = firmwareversion_parser.add_subparsers(help="Available sub-commands") # pylint: disable=unused-variable,line-too-long
+    firmwareversion_parser_d = firmwareversion_subparsers.add_parser('-d', help="Device Firmware") # pylint: disable=unused-variable
+    firmwareversion_parser_a = firmwareversion_subparsers.add_parser("-a", help="Available Firmware") # pylint: disable=unused-variable,line-too-long
+    firmwareversion_parser_ = firmwareversion_subparsers.add_parser("-A", help="--all") # pylint: disable=unused-variable
+
+    pin_parser = subparsers.add_parser("pin")
+    pin_parser.add_argument('pin', default=False, type=int, help="The pin to do action x with.",
+                            metavar="<pin_id>")
+    pinsubparsers = pin_parser.add_subparsers(help="Available sub-commands", dest="pincmd")
+    pinmode_parser = pinsubparsers.add_parser("mode", help="Set pin modes")
+    pinmode_parser.add_argument('mode', default=False,
+                                choices=["input", "output", "input_pullup","pwm"],
+                                help="Pin mode. 'input','output','input_pullup', 'pwm'")
+    digitalpin_parser_h = pinsubparsers.add_parser("high") # pylint: disable=unused-variable
+    digitalpin_parser_l = pinsubparsers.add_parser("low")  # pylint: disable=unused-variable
+    digitalpin_parser_s = pinsubparsers.add_parser("state") # pylint: disable=unused-variable
+    digitalpin_parser_pwm = pinsubparsers.add_parser("pwm") # pylint: disable=unused-variable
+    digitalpin_parser_pwm.add_argument('value', type=int, help='0-255')
+
+    # paa('-w', '--workdir', type=str, default=False,
+    #     help="Alternate workdir path (default: ~/.pyduin)")
 
     args = parser.parse_args()
+    print(args)
     logging.basicConfig(level=getattr(logging, args.log_level.upper()))
-
     try:
-        if args.version:
+        if args.cmd == "versions":
             versions()
             sys.exit(0)
 
         basic_config = get_basic_config(args)
 
-        if args.install_dependencies:
+        if args.cmd == "dependencies":
             check_dependencies()
             sys.exit(0)
 
-        elif args.flash:
+        elif args.cmd == "flash":
             config = get_pyduin_userconfig(args, basic_config)
-            check_dependencies()
-            update_firmware(args, config)
+            #check_dependencies()
+            update_firmware(config)
             sys.exit(0)
 
         config = get_pyduin_userconfig(args, basic_config)
-
         arduino = get_arduino(args, config)
     except ArduinoConfigError as error:
         print(colored(error, 'red'))
         sys.exit(1)
 
-    actions = ('free', 'version', 'high', 'low', 'state', 'mode')
-
-    if args.action and args.action == 'free':
+    if args.cmd == "free":
         print(arduino.get_free_memory())
         sys.exit(0)
-    if args.action and args.action == 'version':
+    elif args.cmd == 'firmware':
+        #if args.version:
         print(arduino.get_firmware_version())
         sys.exit(0)
-
-    try:
-        color = 'green'
-        if args.action and args.action.lower() not in actions:
-            raise ArduinoConfigError(f'Action {args.action} is not available')
-        if args.action and args.action in ('high', 'low', 'state'):
-            if not args.pin:
-                raise ArduinoConfigError("The requested --action requires a --pin. Aborting")
-            if not args.pin in list(arduino.Pins.keys()):
-                message = "Defined pin (%s) is not available. Check pinfile."
-                raise ArduinoConfigError(message % args.pin)
-
+    elif args.cmd == 'pin':
+        if args.pincmd in ('high', 'low'):
             pin = arduino.Pins[args.pin]
-            action = getattr(pin, args.action)
-            result = action().split('%')
-            state = 'low' if int(result[-1]) == 0 else 'high'
-            err = False if args.action == 'high' and state == 'high' or \
-                  args.action == 'low' and state == 'low' else True
-            if err:
-                color = 'red'
-            print(colored(state, color))
-            sys.exit(0 if not err else 1)
-
-        elif args.action and args.action == 'mode':
-            pinmodes = ('output', 'input', 'input_pullup', 'pwm')
-            if not args.mode:
-                raise ArduinoConfigError("'--action mode' needs '--mode <MODE>' to be specified")
-            if args.mode.lower() not in pinmodes:
-                raise ArduinoConfigError("Mode '%s' is not available." % args.mode)
-
-            Pin = arduino.Pins[int(args.pin)]
-            if args.mode == 'pwm':
-                pass
-            else:
-                result = Pin.set_mode(args.mode).split('%')
-                err = False if args.mode == 'input' and int(result[-1]) == 0 or \
-                      args.mode == 'output' and int(result[-1]) == 1 or \
-                      args.mode == 'input_pullup' and int(result[-1]) == 2 else True
-
-                state = 'ERROR' if err else 'OK'
-                if err:
-                    color = 'red'
-                print(colored(state, color))
-
-    except ArduinoConfigError as error:
-        print(colored(error, 'red'))
-        sys.exit(1)
-
+            res = getattr(pin, args.pincmd)()
+            logger.debug(res)
+        elif args.pincmd == 'mode' and args.mode in ('input_pullup', 'input', 'output', 'pwm'):
+            pin = arduino.Pins[args.pin]
+            res = pin.set_mode(args.mode)
+            logger.debug(res)
+        sys.exit(0)
+    else:
+        print("Nothing to do")
+    sys.exit(1)
 
 if __name__ == '__main__':
     main()

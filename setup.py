@@ -17,7 +17,7 @@ setup(name='pyduin',
       python_requires='>3',
       entry_points={
       	'console_scripts':
-      		['arduino=pyduin.arduino_cli:main']
+      		['pyduin=pyduin.arduino_cli:main']
       	},
       include_package_data=True,
       data_files=[('.ino', ['ino/pyduin.ino'])],
