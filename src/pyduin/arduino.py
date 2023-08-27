@@ -35,8 +35,9 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
     Busses = False
     pinfile = False
 
+    # pylint: disable=too-many-arguments
     def __init__(self,  board=False, tty='/dev/ttyUSB0', baudrate=115200, pinfile=False,
-                 serial_timeout=3, wait=False): # pylint: disable=too-many-arguments
+                 serial_timeout=3, wait=False):
         self.board = board
         self.tty = tty
         self.baudrate = baudrate
@@ -67,10 +68,10 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
             #time.sleep(1)
             self.setup_pins()
             self.ready = True
-        except serial.SerialException:
+        except serial.SerialException as error:
             self.ready = False
             errmsg = f'Could not open Serial connection on {self.tty}'
-            raise ArduinoConfigError(errmsg)
+            raise ArduinoConfigError(errmsg) from error
 
     def setup_pins(self):
         """
