@@ -1,6 +1,7 @@
 """ Useful functions to save redundant code """
 import os
 import logging
+import re
 # Basic user config template
 
 CONFIG_TEMPLATE = """
@@ -43,10 +44,25 @@ class PyduinUtils:
         """ Return full path to default firmware file """
         return os.path.join(self.firmwaredir, 'pyduin.ino')
 
+    def available_firmware_version(self, workdir):
+        """ Return the version of the firmware that resides in <workdir> over the
+        the shipped one in data. If no custom firmware is available in <workdir>/src,
+        then the version of the shipped firmware file in data is replied. """
+        if os.path.isfile(os.path.join(workdir, 'src', 'pyduin.ino')):
+            firmware = os.path.join(workdir, 'src', 'pyduin.ino')
+        else:
+            firmware = self.firmware
+        with open(firmware, 'r', encoding='utf8') as fwfile:
+            for line in fwfile.readlines():
+                res = re.search(r'firmware_version = "([0-9].+?)"', line)
+                if res:
+                    return res.group(1)
+        return "unknown"
+
     @property
     def platformio_ini(self):
         """ Return the pull path to default platformio.ini """
-        return os.path.join(self.package_root, 'platformio.ini')
+        return os.path.join(self.firmwaredir, 'platformio.ini')
 
     def board_pinfile(self, board):
         """ Return the full path to a specific pinfile in the package """

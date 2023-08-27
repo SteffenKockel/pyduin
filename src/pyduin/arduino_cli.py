@@ -8,14 +8,16 @@
 """
 import argparse
 import configparser
+import logging
 import os
-from shutil import which
+from shutil import copyfile, which
 import subprocess
 import sys
 import time
-import logging
-import yaml
+
 from termcolor import colored
+import yaml
+
 
 from pyduin.arduino import Arduino, ArduinoConfigError
 from pyduin import _utils as utils
@@ -35,11 +37,13 @@ def get_basic_config(args):
         cfg = yaml.load(_configfile, Loader=yaml.Loader)
     logger.debug("Using configuration file: %s", confpath)
 
+    workdir = args.workdir or cfg.get('workdir', '~/.pyduin')
+    logger.debug("Using workdir %s", workdir)
+    cfg['workdir'] = os.path.expanduser(workdir)
+
     platformio_ini = args.platformio_ini or utils.platformio_ini
     logger.debug("Using platformio.ini in: %s", platformio_ini)
-    parser = configparser.ConfigParser(dict_type=AttrDict)
-    parser.read(platformio_ini)
-    cfg['platformio_ini'] = parser
+    cfg['platformio_ini'] = platformio_ini
 
     cfg['firmware'] = getattr(args, "firmware_file", False) or utils.firmware
     logger.debug("Using firmware from: %s", cfg['firmware'])
@@ -107,7 +111,9 @@ def check_board_support(board, config):
     Determine if the configured model is supported. Do so by checking the
     platformio config file for env definitions.
     """
-    sections = config['platformio_ini'].sections()
+    parser = configparser.ConfigParser(dict_type=AttrDict)
+    parser.read(config['platformio_ini'])
+    sections = parser.sections()
     boards = [x.split(':')[-1] for x in sections if x.startswith('env:')]
     if not board in boards:
         logger.error("Board (%s) not in supported boards list %s",
@@ -140,7 +146,7 @@ def get_arduino(args, config):
         the arduino on reconnect, one has two options
 
         * Start a socat proxy
-        * Do not hang_up_on_close
+        * Do not hang_up_on close
     """
     if config['serial']['hang_up_on_close'] and config['serial']['use_socat']:
         errmsg = "Will not handle 'use_socat:yes' in conjunction with 'hang_up_on_close:no'" \
@@ -195,6 +201,20 @@ def check_dependencies():
     return ret
 
 
+def prepare_buildenv(config):
+    """ Idempotent function that ensures the platformio build env exists and contains
+    the required files in the wanted state. """
+    workdir = config['workdir']
+    srcdir = os.path.join(workdir, 'src')
+    os.makedirs(workdir, exist_ok=True)
+    os.makedirs(srcdir, exist_ok=True)
+    platformio_ini = os.path.join(workdir, 'platformio.ini')
+    if not os.path.isfile(platformio_ini):
+        copyfile(config['platformio_ini'], platformio_ini)
+    firmware = os.path.join(workdir, 'src', 'pyduin.ino')
+    if not os.path.isfile(firmware):
+        copyfile(config['firmware'], firmware)
+
 
 def update_firmware(config):  # pylint: disable=too-many-locals,too-many-statements
     """
@@ -207,8 +227,8 @@ def update_firmware(config):  # pylint: disable=too-many-locals,too-many-stateme
         pid = subprocess.check_output(cmd, shell=True).strip()
         subprocess.check_output(['kill', f'{pid.decode()}'])
         time.sleep(1)
-
-    print(config["_arduino_"])
+    prepare_buildenv(config)
+    os.chdir(config['workdir'])
     out = subprocess.check_output(['pio', 'run', '-e', config['_arduino_']['board'], '-t',
                                    'upload', '--upload-port', config['_arduino_']['tty']])
     print(out)
@@ -219,7 +239,7 @@ def versions():
         Print both firmware and package version
     """
 
-def main(): # pylint: disable=too-many-locals,too-many-statements
+def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branches
     """
         Evaluate user arguments and determine task
     """
@@ -236,27 +256,29 @@ def main(): # pylint: disable=too-many-locals,too-many-statements
         help="Pinfile to use (default: <package_install_dir>/pinfiles/<board>.yml")
     paa('-s', '--baudrate', type=int, default=False)
     paa('-t', '--tty', default=False, help="Arduino tty (default: '/dev/ttyUSB0')")
+    paa('-w', '--workdir', type=str, default=False,
+        help="Alternate workdir path (default: ~/.pyduin)")
 
     subparsers = parser.add_subparsers(help="Available sub-commands", dest="cmd")
-
-    flash_parser = subparsers.add_parser("flash", help="Flash firmware onto device")
-    flash_parser.add_argument('--dry-run', action="store_true")
-    flash_parser.add_argument('-F', '--firmware-file', default=False, type=argparse.FileType('r'),
-                              help="Alternate Firmware file.")
-
     dependencies_parser = subparsers.add_parser("dependencies", help="Check dependencies") # pylint: disable=unused-variable
     # dependencies_parser.add_argument('-i', '--install', help="Install missing dependencies",
     #                                   action='store_true')
 
     version_parser = subparsers.add_parser("versions", help="List versions")  # pylint: disable=unused-variable
     freemem_parser = subparsers.add_parser("free", help="Get free memory from device") # pylint: disable=unused-variable
-    firmware_parser = subparsers.add_parser("firmware", help="Firmware options")
+    firmware_parser = subparsers.add_parser("firmware", help="Firmware options", aliases=['fw'])
     firmwaresubparsers = firmware_parser.add_subparsers(help='Available sub-commands', dest="fwcmd")
-    firmwareversion_parser = firmwaresubparsers.add_parser('version')
-    firmwareversion_subparsers = firmwareversion_parser.add_subparsers(help="Available sub-commands") # pylint: disable=unused-variable,line-too-long
-    firmwareversion_parser_d = firmwareversion_subparsers.add_parser('-d', help="Device Firmware") # pylint: disable=unused-variable
-    firmwareversion_parser_a = firmwareversion_subparsers.add_parser("-a", help="Available Firmware") # pylint: disable=unused-variable,line-too-long
-    firmwareversion_parser_ = firmwareversion_subparsers.add_parser("-A", help="--all") # pylint: disable=unused-variable
+    firmwareversion_parser = firmwaresubparsers.add_parser('version', aliases=['v'])
+    firmwareflash_parser = firmwaresubparsers.add_parser('flash', aliases=['f']) # pylint: disable=unused-variable
+    #firmwareflash_parser.add_argument('--dry-run', action="store_true")
+    #firmwareflash_parser.add_argument('-F', '--firmware-file', default=False,
+    #                                  type=argparse.FileType('r'),
+    #                                  help="Alternate Firmware file.")
+    firmwareversion_subparsers = firmwareversion_parser.add_subparsers(help="Available sub-commands", dest='fwscmd') # pylint: disable=unused-variable,line-too-long
+    firmwareversion_parser_d = firmwareversion_subparsers.add_parser('device',
+                                                                      help="Device Firmware") # pylint: disable=unused-variable
+    firmwareversion_parser_a = firmwareversion_subparsers.add_parser("available", help="Available Firmware") # pylint: disable=unused-variable,line-too-long
+    firmwareversion_parser_all = firmwareversion_subparsers.add_parser("all", help="--all") # pylint: disable=unused-variable
 
     pin_parser = subparsers.add_parser("pin")
     pin_parser.add_argument('pin', default=False, type=int, help="The pin to do action x with.",
@@ -266,14 +288,11 @@ def main(): # pylint: disable=too-many-locals,too-many-statements
     pinmode_parser.add_argument('mode', default=False,
                                 choices=["input", "output", "input_pullup","pwm"],
                                 help="Pin mode. 'input','output','input_pullup', 'pwm'")
-    digitalpin_parser_h = pinsubparsers.add_parser("high") # pylint: disable=unused-variable
-    digitalpin_parser_l = pinsubparsers.add_parser("low")  # pylint: disable=unused-variable
+    digitalpin_parser_h = pinsubparsers.add_parser("high", aliases=['h']) # pylint: disable=unused-variable
+    digitalpin_parser_l = pinsubparsers.add_parser("low", aliases=['l'])  # pylint: disable=unused-variable
     digitalpin_parser_s = pinsubparsers.add_parser("state") # pylint: disable=unused-variable
     digitalpin_parser_pwm = pinsubparsers.add_parser("pwm") # pylint: disable=unused-variable
     digitalpin_parser_pwm.add_argument('value', type=int, help='0-255')
-
-    # paa('-w', '--workdir', type=str, default=False,
-    #     help="Alternate workdir path (default: ~/.pyduin)")
 
     args = parser.parse_args()
     print(args)
@@ -289,29 +308,34 @@ def main(): # pylint: disable=too-many-locals,too-many-statements
             check_dependencies()
             sys.exit(0)
 
-        elif args.cmd == "flash":
-            config = get_pyduin_userconfig(args, basic_config)
-            #check_dependencies()
-            update_firmware(config)
-            sys.exit(0)
-
         config = get_pyduin_userconfig(args, basic_config)
-        arduino = get_arduino(args, config)
+
     except ArduinoConfigError as error:
         print(colored(error, 'red'))
         sys.exit(1)
+
+    if getattr(args, 'fwcmd', False) not in ('flash', 'f'):
+        arduino = get_arduino(args, config)
 
     if args.cmd == "free":
         print(arduino.get_free_memory())
         sys.exit(0)
     elif args.cmd == 'firmware':
-        #if args.version:
-        print(arduino.get_firmware_version())
+        if args.fwcmd in ('version', 'v'):
+            if args.fwscmd in ('device', 'd', None):
+                print(arduino.get_firmware_version())
+            elif args.fwscmd in ('a', 'available'):
+                print(utils.available_firmware_version(config['workdir']))
+        elif args.fwcmd in ('flash', 'f'):
+            update_firmware(config)
         sys.exit(0)
     elif args.cmd == 'pin':
-        if args.pincmd in ('high', 'low'):
+        if args.pincmd in ('high', 'low', 'h', 'l'):
+            act = args.pincmd
+            act = 'high' if act == 'h' else act
+            act = 'low' if act == 'l' else act
             pin = arduino.Pins[args.pin]
-            res = getattr(pin, args.pincmd)()
+            res = getattr(pin, act)()
             logger.debug(res)
         elif args.pincmd == 'mode' and args.mode in ('input_pullup', 'input', 'output', 'pwm'):
             pin = arduino.Pins[args.pin]
