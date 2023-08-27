@@ -36,13 +36,13 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
     pinfile = False
 
     def __init__(self,  board=False, tty='/dev/ttyUSB0', baudrate=115200, pinfile=False,
-                 serial_timeout=3, cli=False):  # pylint: disable=too-many-arguments
+                 serial_timeout=3, wait=False): # pylint: disable=too-many-arguments
         self.board = board
         self.tty = tty
         self.baudrate = baudrate
         self._pinfile = pinfile or utils.board_pinfile(board)
         self.ready = False
-        self.cli = cli
+        self.wait = wait
         self.serial_timeout = serial_timeout
 
         # if not self.board or not self.tty or not self.baudrate or not self._pinfile:
@@ -53,7 +53,7 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
         if not os.path.isfile(self._pinfile):
             raise ArduinoConfigError(f'Cannot open pinfile: {self._pinfile}')
 
-        if self.cli:
+        if self.wait:
             self.open_serial_connection()
 
     def open_serial_connection(self):
@@ -115,7 +115,7 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
             Send a serial message to the arduino.
         """
         self.Connection.write(message.encode('utf-8'))
-        if self.cli:
+        if self.wait:
             msg = self.Connection.readline().decode('utf-8').strip()
             if msg == "Boot complete":
                 # It seems, we need to re-send, if the first thing we see
@@ -131,7 +131,7 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
             Get arduino firmware version
         """
         res = self.send("<zv00000>")
-        if self.cli:
+        if self.wait:
             return res.split("%")[-1]
         return True
 
@@ -140,6 +140,6 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
             Return the free memory from the arduino
         """
         res = self.send("<zz00000>")
-        if self.cli:
+        if self.wait:
             return res.split("%")[-1]
         return res

@@ -142,7 +142,7 @@ def _get_proxy_tty_name(config):
 def get_arduino(args, config):
     """
         Get an arduino object, open the serial connection if it is the first connection
-        or cli_mode=True (socat off/unavailable) and return it. To circumvent restarts of
+        or wait=True (socat off/unavailable) and return it. To circumvent restarts of
         the arduino on reconnect, one has two options
 
         * Start a socat proxy
@@ -178,7 +178,7 @@ def get_arduino(args, config):
 
     arduino = Arduino(tty=aconfig['tty'], baudrate=aconfig['baudrate'],
                   pinfile=aconfig['pinfile'], board=aconfig['board'],
-                  cli=True)
+                  wait=True)
     return arduino
 
 def check_dependencies():
