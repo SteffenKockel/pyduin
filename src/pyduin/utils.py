@@ -26,17 +26,17 @@ class PyduinUtils:
     @property
     def package_root(self):
         """ Return the packages root dir. Needed for assets pinfiles and firmware """
-        return os.path.dirname(os.path.dirname(__file__))
+        return os.path.dirname(__file__)
 
     @property
     def pinfiledir(self):
         """ Return the directory within the package, where the pinfiles resied """
-        return os.path.join(self.package_root, 'pinfiles')
+        return os.path.join(self.package_root, 'data', 'pinfiles')
 
     @property
     def firmwaredir(self):
         """ Return the directory within the package, where the firmware resides """
-        return os.path.join(self.package_root, 'src')
+        return os.path.join(self.package_root, 'data', 'platformio')
 
     @property
     def firmware(self):

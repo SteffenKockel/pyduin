@@ -1,11 +1,12 @@
 # pyduin
 
-## What?
-
 A Pyhton wrapper for Arduino and other IOT devices such as ESP. It aims to support everything, that platformio supports. It consists of two parts
 
 * A python library
 * A firmware to be loaded onto the device
+
+[[_TOC_]]
+
 
 ### What for?
 
@@ -105,10 +106,20 @@ pyduin -B uber pin 4 mode {input|ouput|input_pullup,pwm}
 #### Get firmware version from the arduino
 
 ```
-pyduin --buddy uber --action version
+pyduin --buddy uber firmware
 ```
 #### Get free memory from the arduino
 
 ```
 pyduin --buddy uber --action free
+```
+
+## Contribute
+
+```
+mkdir pyduindev && cd !$
+git git@github.com:SteffenKockel/pyduin.git
+virtualenv .
+. bin/activate
+pip install -e .
 ```
