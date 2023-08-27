@@ -251,7 +251,7 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
         help="Alternate configfile (default: ~/.pyduin.yml)")
     paa('-I', '--platformio-ini', default=False, type=argparse.FileType('r'),
         help="Specify an alternate platformio.ini")
-    paa('-l', '--log-level', default="debug")
+    paa('-l', '--log-level', default=False)
     paa('-p', '--pinfile', default=False,
         help="Pinfile to use (default: <package_install_dir>/pinfiles/<board>.yml")
     paa('-s', '--baudrate', type=int, default=False)
@@ -276,7 +276,7 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
     #                                  help="Alternate Firmware file.")
     firmwareversion_subparsers = firmwareversion_parser.add_subparsers(help="Available sub-commands", dest='fwscmd') # pylint: disable=unused-variable,line-too-long
     firmwareversion_parser_d = firmwareversion_subparsers.add_parser('device',
-                                                                      help="Device Firmware") # pylint: disable=unused-variable
+                                                                     help="Device Firmware") # pylint: disable=unused-variable
     firmwareversion_parser_a = firmwareversion_subparsers.add_parser("available", help="Available Firmware") # pylint: disable=unused-variable,line-too-long
     firmwareversion_parser_all = firmwareversion_subparsers.add_parser("all", help="--all") # pylint: disable=unused-variable
 
@@ -295,29 +295,30 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
     digitalpin_parser_pwm.add_argument('value', type=int, help='0-255')
 
     args = parser.parse_args()
-    print(args)
-    logging.basicConfig(level=getattr(logging, args.log_level.upper()))
     try:
-        if args.cmd == "versions":
-            versions()
-            sys.exit(0)
-
         basic_config = get_basic_config(args)
-
-        if args.cmd == "dependencies":
-            check_dependencies()
-            sys.exit(0)
-
         config = get_pyduin_userconfig(args, basic_config)
-
     except ArduinoConfigError as error:
         print(colored(error, 'red'))
         sys.exit(1)
 
+    print(args)
+    log_level = args.log_level #or config.get('log_level', 'info')
+    logging.basicConfig(level=getattr(logging, log_level.upper()))
+    # re-read configs to be able to see the log messages.
+    basic_config = get_basic_config(args)
+    config = get_pyduin_userconfig(args, basic_config)
+
     if getattr(args, 'fwcmd', False) not in ('flash', 'f'):
         arduino = get_arduino(args, config)
 
-    if args.cmd == "free":
+    if args.cmd == "versions":
+        versions()
+        sys.exit(0)
+    elif args.cmd == "dependencies":
+        check_dependencies()
+        sys.exit(0)
+    elif args.cmd == "free":
         print(arduino.get_free_memory())
         sys.exit(0)
     elif args.cmd == 'firmware':
