@@ -3,10 +3,8 @@
 A Pyhton wrapper for Arduino and other IOT devices such as ESP. It aims to support everything, that platformio supports. It consists of two parts
 
 * A python library
+* A commandline interface
 * A firmware to be loaded onto the device
-
-[[_TOC_]]
-
 
 ### What for?
 
@@ -14,11 +12,19 @@ To interact seamless with an Arduino or other IOT device from within Python. Onc
 
 This makes it easy to wire a sensor to an IOT device, connect it to a computer and start working with the sensor values in Python. The library supports:
 
-- Analog read and write
+- Analog read and write (wip)
 - Digital read and write
 - OneWire
 - DHT Sensors
+- SPI
 - ...
+
+### Device support
+
+In theory, any device supported by [platformio](https://platformio.org/) can work. Currently, the following devices are supported
+
+* Arduino Uno
+* Arduino Nano
 
 ## Installation
 
@@ -111,7 +117,7 @@ pyduin --buddy uber firmware
 #### Get free memory from the arduino
 
 ```
-pyduin --buddy uber --action free
+pyduin --buddy uber free
 ```
 
 ## Contribute
@@ -123,3 +129,8 @@ virtualenv .
 . bin/activate
 pip install -e .
 ```
+
+### Add device
+
+Adding a device works, by editing the `~/.pyduin/platformio.ini` and and provide a `pinfile`. These files and folders gets created, when attempting to flash firmware. Changes made here are preserved. A device must also provide a [pinfile]('/src/pyduin/data/pinfiles'). The name of the pinfile should have the name of the corresponding board name (as in platformio).
+When developing, the pinfile can just be added in the repo structure. To test a pinfile while not in development mode, the `-p` option can be used.
