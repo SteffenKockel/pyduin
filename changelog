@@ -1,5 +1,16 @@
 = pyduin changelog
 
+== 0.6.1
+
+* Move from Arduino IDE to platformio
+* Improve cli interface
+* Move to python3
+* Introduce logging, log-level
+* Introduce utils module
+* Replace setup.py with pyproject.toml
+* Improve metadata (for pypi page)
+* Increase pylint conformity
+
 == 0.5.0
 
 * Add socat usage
