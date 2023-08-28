@@ -1,6 +1,6 @@
 # pyduin
 
-A Pyhton wrapper for Arduino and other IOT devices such as ESP. It aims to support everything, that platformio supports. It consists of two parts
+A Python wrapper for Arduino and other IOT devices such as ESP. It aims to support everything, that platformio supports. It consists of two parts
 
 * A python library
 * A commandline interface
@@ -86,9 +86,9 @@ pyduin -B uber pin 13 high
 ```
 ## 
 
-#### Flashing firmware to the arduino
+#### Flashing firmware to the Arduino
 
-Then the buddies can be addressed with the `-B` option. The following example would build the `.ino` file from the example above and flash it to the arduino. 
+Then the buddies can be addressed with the `-B` option. The following example would build the `.ino` file from the example above and flash it to the Arduino. 
 ```
 pyduin -B uber flash
 ```
@@ -97,11 +97,11 @@ It can also be done without the buddy list.
 pyduin --board nanoatmega328 --tty=/dev/mytty flash
 ```
 
-If the `--firmware` option is ommitted, then the project firmware gets applied.
+If the `--firmware` option is omitted, then the project firmware gets applied.
 
 #### Control the arduinos pins
 
-Opening a serial connection **resets most arduinos**. `pyduin` circumvents this drawback with a `socat` proxy. Also another variant (`hupcl:off`) is in the pipeline. The difference is, that `socat` will set all pin modes on startup while the `hupcl` approach will require the user to set the pin mode manually. The big plus of the `hupcl` approach independence of third party applications.
+Opening a serial connection **resets most Arduinos**. `pyduin` circumvents this drawback with a `socat` proxy. Also another variant (`hupcl:off`) is in the pipeline. The difference is, that `socat` will set all pin modes on startup while the `hupcl` approach will require the user to set the pin mode manually. The big plus of the `hupcl` approach independence of third party applications.
 ```
 pyduin --buddy uber pin 4 {high|low}
 ```
@@ -109,12 +109,12 @@ Also the pin mode can be set
 ```
 pyduin -B uber pin 4 mode {input|ouput|input_pullup,pwm}
 ```
-#### Get firmware version from the arduino
+#### Get firmware version from the Arduino
 
 ```
 pyduin --buddy uber firmware
 ```
-#### Get free memory from the arduino
+#### Get free memory from the Arduino
 
 ```
 pyduin --buddy uber free
