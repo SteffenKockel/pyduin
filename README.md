@@ -138,5 +138,5 @@ pip install -e .
 
 ### Add device
 
-Adding a device works, by editing the `~/.pyduin/platformio.ini` and and provide a `pinfile`. These files and folders gets created, when attempting to flash firmware. Changes made here are preserved. A device must also provide a [pinfile]('/src/pyduin/data/pinfiles'). The name of the pinfile should have the name of the corresponding board name (as in platformio).
+Adding a device works, by editing the `~/.pyduin/platformio.ini` and and provide a `pinfile`. These files and folders gets created, when attempting to flash firmware. Changes made here are preserved. A device must also provide a [pinfile](https://github.com/SteffenKockel/pyduin/tree/master/src/pyduin/data/pinfiles). The name of the pinfile should have the name of the corresponding board name (as in platformio).
 When developing, the pinfile can just be added in the repo structure. To test a pinfile while not in development mode, the `-p` option can be used.
