@@ -48,7 +48,7 @@ class Mode(object):
         self.Pin = weakref.proxy(Pin)
         self.wanted_mode = pin_mode
         self._setpinmodetext = f'Set pin mode for pin {self.Pin.pin_id} to'
-        if not self.Pin.Arduino.cli:
+        if not self.Pin.Arduino.wait:
             self.set_mode(pin_mode)
 
     def analog_or_digital(self):
