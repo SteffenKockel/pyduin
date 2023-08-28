@@ -303,7 +303,7 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
         sys.exit(1)
 
     print(args)
-    log_level = args.log_level #or config.get('log_level', 'info')
+    log_level = args.log_level or config.get('log_level', 'info')
     logging.basicConfig(level=getattr(logging, log_level.upper()))
     # re-read configs to be able to see the log messages.
     basic_config = get_basic_config(args)
