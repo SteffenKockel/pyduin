@@ -43,7 +43,7 @@ To make meaningful use of the CLI features, the installation and usage of `soact
 serial:
   use_socat: yes
 ```
-If `socat` is installed, a proxy will be started for every device that connections are made to. The pins get set up accordint to the pinfile and the inital modes get set on first conect. The following connections **will not reset the arduino**. The proxy will stop safely on device disconnect. The proxy will also be stopped for flashing.
+If `socat` is installed, a proxy will be started for every device that connections are made to. The pins get set up according to the pinfile and the initial modes get set on first connect. The following connections **will not reset the Arduino**. The proxy will stop safely on device disconnect. The proxy will also be stopped for flashing.
 
 ## Usage
 
@@ -52,12 +52,18 @@ If `socat` is installed, a proxy will be started for every device that connectio
 After installation the `pyduin` module can be imported.
 ```python
 from pyduin import arduino
+from pyduin import _utils as utils
 
-Arduino = arduino.Arduino(model='nano', tty='/dev/ttyUSB0', pinfile='~/.pyduin/pinfiles/nano.yml', baudrate=115200)
-firmware_version = Arduino.get_firmware_version()
+board = 'nanoatmega328'
+pinfile = utils.board_pinfile(board)
+
+Arduino = arduino.Arduino(board=board, tty='/dev/ttyUSB0',
+                          pinfile=pinfile, baudrate=115200, wait=True)
+Arduino.open_serial_connection()
+print(Arduino.get_firmware_version())
 Arduino.Pins[13].set_mode('OUTPUT')
-Arduino.Pins[13].high()
-free_mem = Arduino.get_free_memory()
+Arduino.Pins[13].low()
+print(Arduino.get_free_memory())
 ```
 ## CLI
 
@@ -99,7 +105,7 @@ pyduin --board nanoatmega328 --tty=/dev/mytty flash
 
 If the `--firmware` option is omitted, then the project firmware gets applied.
 
-#### Control the arduinos pins
+#### Control the Arduinos pins
 
 Opening a serial connection **resets most Arduinos**. `pyduin` circumvents this drawback with a `socat` proxy. Also another variant (`hupcl:off`) is in the pipeline. The difference is, that `socat` will set all pin modes on startup while the `hupcl` approach will require the user to set the pin mode manually. The big plus of the `hupcl` approach independence of third party applications.
 ```
