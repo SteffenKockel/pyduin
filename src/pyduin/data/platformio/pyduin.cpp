@@ -1,3 +1,5 @@
+// Copyright 2023 Steffen Kockel info@steffen-kockel.de
+// License MIT
 #include <DHT.h>
 #include <string.h>
 #include <OneWire.h>
@@ -6,7 +8,7 @@
 
 
 // command
-//String s;
+// String s;
 
 // command (byte 1)
 // a - readActor
@@ -41,7 +43,7 @@ DallasTemperature *myDallasTemperature = NULL;
 DeviceAddress OneWireAddr;
 
 // firmware version
-String firmware_version = "0.6.1";
+String firmware_version = "0.6.2";
 // arduino id
 int arduino_id = 0;
 // command
@@ -55,9 +57,9 @@ int v;
 // input
 int i;
 // temp
-int pwmPins[6] = {3,5,6,9,10,11};
-int analogPins[8] = {14,15,16,17,18,19,20,21};
-int digitalPins[14] = {0,1,3,4,5,6,7,8,9,10,11,12,13};
+int pwmPins[6] = {3, 5, 6, 9, 10, 11};
+int analogPins[8] = {14, 15, 16, 17, 18, 19, 20, 21};
+int digitalPins[14] = {0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13};
 String tmp;
 String pin;
 String val;
@@ -68,8 +70,7 @@ unsigned long CurrTime;
 unsigned long LastTime = 0;
 
 
-int getPinMode(uint8_t pin)
-{
+int getPinMode(uint8_t pin) {
   if (pin >= NUM_DIGITAL_PINS) return (-1);
 
   uint8_t bit = digitalPinToBitMask(pin);
@@ -83,24 +84,22 @@ int getPinMode(uint8_t pin)
 
 
 void setup() {
-
   Serial.begin(115200);
   Serial.println("Boot complete");
 }
 
 
-void invalid_command(String S){
+void invalid_command(String S) {
   Serial.print("Invalid command:");
   Serial.println(S);
 }
 
 
 void analog_actor_sensor(char c, char t, String tmp, int p, int v) {
-
-  switch(t) {
+  switch (t) {
     // analog actor/sensor
     case 'A':
-      switch(c) {
+      switch (c) {
         case 'a':
         case 's':
           // analog sensor/actor READ
@@ -110,9 +109,9 @@ void analog_actor_sensor(char c, char t, String tmp, int p, int v) {
           // analog sensor/actor (PWM) WRITE
           // Check, if we really have a PWM capable
           // pin here.
-          for (int j = 0;j<6;j++) {
+          for (int j = 0; j < 6; j++) {
             if (pwmPins[j] == p) {
-              analogWrite(p,v);
+              analogWrite(p, v);
               Serial.println(analogRead(p));
             }
           }
@@ -125,13 +124,13 @@ void analog_actor_sensor(char c, char t, String tmp, int p, int v) {
     // digital actor/sensor
     case 'D':
     // digital actor/sensor READ
-      switch(c) {
+      switch (c) {
         case 'a':
         case 's':
           Serial.println(digitalRead(p));
           break;
         case 'A':
-          digitalWrite(p,v);
+          digitalWrite(p, v);
           // Serial.print(p);
           // Serial.println(v);
           Serial.println(digitalRead(p));
@@ -149,7 +148,7 @@ void onewire(int p, int v) {
   myDallasTemperature->getAddress(OneWireAddr, v);
   // @FIXME: Make this dynamic (resolution)
   myDallasTemperature->setResolution(OneWireAddr, 9);
-  //myDallasTemperature->setResolution(OneWireAddr, 12);
+  // myDallasTemperature->setResolution(OneWireAddr, 12);
   myDallasTemperature->requestTemperatures();
   Serial.print(v);
   Serial.print("%");
@@ -161,7 +160,7 @@ void onewire(int p, int v) {
 
 void dhtsensor(int p, int v) {
   myDHT = new DHT(p, v);
-  //delay(2000);
+  // delay(2000);
   // Reading temperature or humidity takes about 250 milliseconds!
   // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
   float hum = myDHT->readHumidity();
@@ -181,14 +180,13 @@ void dhtsensor(int p, int v) {
 
 
 void pin_mode(char c, char t, int p) {
-
-  switch(c) {
-    //case 'm': //?
+  switch (c) {
+    // case 'm': //?
     // Serial.println(getPinMode(p));
-    //break;
+    // break;
     case 'M':
     case 'm':
-      switch(t) {
+      switch (t) {
         // input
         case 'I':
           pinMode(p, INPUT);
@@ -209,37 +207,36 @@ void pin_mode(char c, char t, int p) {
 
 
 void loop() {
-
   while (Serial.available() > 0) {
     i = Serial.read();
     if (i != '<') {
-      //invalid_command(tmp);
+      // invalid_command(tmp);
       break;
-      }
+    }
     tmp = Serial.readStringUntil('>');
-    if (tmp.length()!=7) {
+    if (tmp.length() != 7) {
       invalid_command(tmp);
       break;
       }
-    c = (char)tmp[0];
-    t = (char)tmp[1];
-    pin = tmp.substring(2,4);
-    val = tmp.substring(4,7);
+    c = static_cast<char>(tmp[0]);
+    t = static_cast<char>(tmp[1]);
+    pin = tmp.substring(2, 4);
+    val = tmp.substring(4, 7);
     Serial.print(arduino_id);
-    Serial.print('%'); // 1
+    Serial.print('%');  // 1
     p = pin.toInt();
     v = val.toInt();
 
     // only reply pin_number if a pin is involved
     if (c != 'z') {
       Serial.print(p);
-      Serial.print("%"); // 2
+      Serial.print("%");  // 2
     }
 
-    switch(c) {
+    switch (c) {
       // handle special commands
       case 'z':
-        switch(t) {
+        switch (t) {
           case 'z':
             Serial.print("free_mem");
             Serial.print("%");
@@ -272,8 +269,7 @@ void loop() {
         // handle dht sensors
         dhtsensor(p, v);
         break;
-    } // main command switch
-  } // pin type switch
-} // while serial
- // loop
-
+    }  // main command switch
+  }  // pin type switch
+}  // while serial
+  // loop

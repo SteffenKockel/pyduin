@@ -211,7 +211,7 @@ def prepare_buildenv(config):
     platformio_ini = os.path.join(workdir, 'platformio.ini')
     if not os.path.isfile(platformio_ini):
         copyfile(config['platformio_ini'], platformio_ini)
-    firmware = os.path.join(workdir, 'src', 'pyduin.ino')
+    firmware = os.path.join(workdir, 'src', 'pyduin.cpp')
     if not os.path.isfile(firmware):
         copyfile(config['firmware'], firmware)
 

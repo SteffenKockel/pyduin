@@ -42,14 +42,14 @@ class PyduinUtils:
     @property
     def firmware(self):
         """ Return full path to default firmware file """
-        return os.path.join(self.firmwaredir, 'pyduin.ino')
+        return os.path.join(self.firmwaredir, 'pyduin.cpp')
 
     def available_firmware_version(self, workdir):
         """ Return the version of the firmware that resides in <workdir> over the
         the shipped one in data. If no custom firmware is available in <workdir>/src,
         then the version of the shipped firmware file in data is replied. """
-        if os.path.isfile(os.path.join(workdir, 'src', 'pyduin.ino')):
-            firmware = os.path.join(workdir, 'src', 'pyduin.ino')
+        if os.path.isfile(os.path.join(workdir, 'src', 'pyduin.cpp')):
+            firmware = os.path.join(workdir, 'src', 'pyduin.cpp')
         else:
             firmware = self.firmware
         with open(firmware, 'r', encoding='utf8') as fwfile:
