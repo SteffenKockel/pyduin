@@ -302,9 +302,9 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
         print(colored(error, 'red'))
         sys.exit(1)
 
-    print(args)
     log_level = args.log_level or config.get('log_level', 'info')
     logging.basicConfig(level=getattr(logging, log_level.upper()))
+    logging.debug(args)
     # re-read configs to be able to see the log messages.
     basic_config = get_basic_config(args)
     config = get_pyduin_userconfig(args, basic_config)
