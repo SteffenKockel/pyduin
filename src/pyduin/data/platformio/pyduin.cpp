@@ -43,7 +43,7 @@ DallasTemperature *myDallasTemperature = NULL;
 DeviceAddress OneWireAddr;
 
 // firmware version
-String firmware_version = "0.6.2";
+String firmware_version = "0.6.3";
 // arduino id
 int arduino_id = 0;
 // command
@@ -66,8 +66,6 @@ String val;
 //              1 2     3     4 5        6 7 8       9
 // input format < A|a|s A|D   0-21|A0-A6 001|000|255 >
 //                0     1     2 3        4 5 6       7
-unsigned long CurrTime;
-unsigned long LastTime = 0;
 
 
 int getPinMode(uint8_t pin) {
