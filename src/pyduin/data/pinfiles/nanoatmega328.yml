@@ -1,19 +1,6 @@
 pin_type: arduino
-model: Nano
-num_digital_pins: 20
-num_analog_inputs: 8
-num_pwm_pins: 6
-pwm_pins: [3, 5, 6, 9, 10, 11]
-analog_pins:
-  A0: 14
-  A1: 15
-  A2: 16
-  A3: 17
-  A4: 18
-  A5: 19
-  A6: 20
-  A7: 21
-  A8: 22
+model: nanoatmega328
+
 spi:
   ss: 10
   mosi: 11

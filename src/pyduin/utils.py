@@ -2,8 +2,11 @@
 import os
 import logging
 import re
-# Basic user config template
+from collections import OrderedDict
+import yaml
 
+
+# Basic user config template
 CONFIG_TEMPLATE = """
 
 serial:
@@ -59,6 +62,7 @@ class PyduinUtils:
                     return res.group(1)
         return "unknown"
 
+
     @property
     def platformio_ini(self):
         """ Return the pull path to default platformio.ini """
@@ -100,6 +104,63 @@ class PyduinUtils:
             except KeyError:
                 return False
         return False
+
+
+class PinFile:
+    """ Represents a pinfile and provides functions mostly required for templating
+    the firmware for different boards """
+    _analog_pins = []
+    _digital_pins = []
+    _pwm_pins = []
+    pins = OrderedDict()
+    pinfile = False
+
+    def __init__(self, pinfile):
+        with open(pinfile, 'r', encoding='utf-8') as pfile:
+            self.pinfile = yaml.load(pfile, Loader=yaml.Loader)
+
+        self.pins = sorted(list(self.pinfile['Pins'].items()),
+                       key=lambda x: int(x[1]['physical_id']))
+
+        for name, pinconfig in self.pins:  # pylint: disable=unused-variable
+            pin_id = pinconfig['physical_id']
+            if pinconfig.get('pin_type') == 'analog':
+                self._analog_pins.append(pin_id)
+            elif pinconfig.get('pin_type', 'digital') == 'digital':
+                self._digital_pins.append(pin_id)
+            if pinconfig.get('pwm_capable'):
+                self._pwm_pins.append(pin_id)
+
+    @property
+    def analog_pins(self):
+        """ Return a list of analog pin id's """
+        return self._analog_pins
+
+    @property
+    def digital_pins(self):
+        """ Return a list of digital pin id's """
+        return self._digital_pins
+
+    @property
+    def pwm_pins(self):
+        """ return a list of pwm-capable pin id'w """
+        return self._pwm_pins
+
+    @property
+    def num_analog_pins(self):
+        """ Return the number of analog pins for the given board """
+        return len(self._analog_pins)
+
+    @property
+    def num_digital_pins(self):
+        """ Return the number of digital pins for the given board """
+        return len(self._digital_pins)
+
+    @property
+    def num_pwm_pins(self):
+        """ Return the number of pwm-capable pins """
+        return len(self._pwm_pins)
+
 
 class AttrDict(dict):
     """ Helper class to ease the handling of ini files with configparser. """

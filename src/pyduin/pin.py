@@ -48,7 +48,7 @@ class Mode(object):
         self.Pin = weakref.proxy(Pin)
         self.wanted_mode = pin_mode
         self._setpinmodetext = f'Set pin mode for pin {self.Pin.pin_id} to'
-        if not self.Pin.Arduino.wait:
+        if not self.Pin.arduino.wait:
             self.set_mode(pin_mode)
 
     def analog_or_digital(self):
@@ -66,7 +66,7 @@ class Mode(object):
         message = "<MO%02d001>" if self.analog_or_digital() == 'digital' else "<MO%s030>"
         message = message % self.Pin.pin_id
         self.Pin.pin_mode = 'output'
-        return self.Pin.Arduino.send(message)
+        return self.Pin.arduino.send(message)
 
     def input(self):
         """
@@ -78,7 +78,7 @@ class Mode(object):
         message = "<MI%02d000>" if self.analog_or_digital() == 'digital' else "<MI%s000>"
         message = message % self.Pin.pin_id
         self.Pin.pin_mode = 'input'
-        return self.Pin.Arduino.send(message)
+        return self.Pin.arduino.send(message)
 
     def input_pullup(self):
         """
@@ -89,7 +89,7 @@ class Mode(object):
         message = "<MP%02d000>" if self.analog_or_digital() == 'digital' else "<MP%s000>"
         message = message % self.Pin.pin_id
         self.Pin.pin_mode = 'input_pullup'
-        return self.Pin.Arduino.send(message)
+        return self.Pin.arduino.send(message)
 
     def get_mode(self):
         """
@@ -97,7 +97,7 @@ class Mode(object):
         """
         message = "<mm%02d000>" if self.analog_or_digital() == 'digital' else "<mm%sd000>"
         message = message % self.Pin.pin_id
-        return self.Pin.Arduino.send(message)
+        return self.Pin.arduino.send(message)
 
     def set_mode(self, mode):
         """
@@ -120,7 +120,7 @@ class ArduinoPin(object):  # pylint: disable=too-many-instance-attributes
     role = False
 
     def __init__(self, arduino, pin_id, **config):
-        self.Arduino = weakref.proxy(arduino)  # pylint: disable=invalid-name
+        self.arduino = weakref.proxy(arduino)  # pylint: disable=invalid-name
         self.pin_id = int(pin_id)
         self.pin_type = config.get('pin_type', 'digital')
         self.pwm_capable = config.get('pwm_capable', False)
@@ -149,18 +149,18 @@ class ArduinoPin(object):  # pylint: disable=too-many-instance-attributes
             Set this pin to HIGH
         """
         message = "<AD%02d001>" % self.pin_id
-        return self.Arduino.send(message)
+        return self.arduino.send(message)
 
     def low(self):
         """
             Set this pin to LOW
         """
         message = "<AD%02d000>" % self.pin_id
-        return self.Arduino.send(message)
+        return self.arduino.send(message)
 
     def state(self):
         """
             Determine, if the state is LOW or HIGH
         """
         message = "<aD%02d000>" % self.pin_id
-        return self.Arduino.send(message)
+        return self.arduino.send(message)

@@ -6,14 +6,14 @@
 """
     Arduino module
 """
-from collections import OrderedDict
 import os
+from collections import OrderedDict
 
 import serial
-import yaml
 
-from pyduin.pin import ArduinoPin
 from pyduin import _utils as utils
+from pyduin import PinFile
+from pyduin.pin import ArduinoPin
 
 IMMEDIATE_RESPONSE = True
 
@@ -42,9 +42,11 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
         self.tty = tty
         self.baudrate = baudrate
         self._pinfile = pinfile or utils.board_pinfile(board)
+        self.pinfile = False
         self.ready = False
         self.wait = wait
         self.serial_timeout = serial_timeout
+        self.Pins = OrderedDict()
 
         # if not self.board or not self.tty or not self.baudrate or not self._pinfile:
         #     mandatory = ('board', 'tty', 'baudrate', '_pinfile')
@@ -77,32 +79,11 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
         """
             Setup pins according to pinfile.
         """
-        self.analog_pins = []
-        self.digital_pins = []
-        self.pwm_cap_pins = []
-        self.Pins = OrderedDict()
-        self.Busses = {}
+        self.pinfile = PinFile(self._pinfile)
 
-        with open(self._pinfile, 'r', encoding='utf-8') as pinfile:
-            self.pinfile = yaml.load(pinfile, Loader=yaml.Loader)
-
-        _Pins = sorted(list(self.pinfile['Pins'].items()),
-                       key=lambda x: int(x[1]['physical_id']))
-
-        for name, pinconfig in _Pins:  # pylint: disable=unused-variable
+        for name, pinconfig in self.pinfile.pins:
             pin_id = pinconfig['physical_id']
-            # Dont't register a pin twice
-            if pin_id in list(self.Pins.keys()):
-                continue
             Pin = ArduinoPin(self, pin_id, **pinconfig)
-            # Determine capabilities
-            if Pin.pin_type == 'analog':
-                self.analog_pins.append(pin_id)
-            elif Pin.pin_type == 'digital':
-                self.digital_pins.append(pin_id)
-            if Pin.pwm_capable:
-                self.pwm_cap_pins.append(pin_id)
-            # Update pin dict
             self.Pins[pin_id] = Pin
 
     def close_serial_connection(self):
