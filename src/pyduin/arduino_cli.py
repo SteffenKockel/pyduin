@@ -21,7 +21,7 @@ import yaml
 
 from pyduin.arduino import Arduino, ArduinoConfigError
 from pyduin import _utils as utils
-from pyduin import AttrDict
+from pyduin import AttrDict, VERSION
 
 logger = logging.getLogger('pyduin')
 
@@ -234,10 +234,23 @@ def update_firmware(config):  # pylint: disable=too-many-locals,too-many-stateme
     print(out)
 
 
-def versions():
+def versions(arduino, workdir):
     """
         Print both firmware and package version
     """
+    res = {"pyduin": VERSION,
+           "device": arduino.get_firmware_version(),
+           "available": utils.available_firmware_version(workdir) }
+    return res
+
+def lint_firmware():
+    """ Static code check firmware """
+    try:
+        print("Running cpplint...")
+        res = subprocess.check_output(['cpplint', utils.firmware])
+        print(res)
+    except subprocess.CalledProcessError:
+        logging.error("The firmware contains errors")
 
 def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branches
     """
@@ -260,26 +273,18 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
         help="Alternate workdir path (default: ~/.pyduin)")
 
     subparsers = parser.add_subparsers(help="Available sub-commands", dest="cmd")
-    dependencies_parser = subparsers.add_parser("dependencies", help="Check dependencies") # pylint: disable=unused-variable
-    # dependencies_parser.add_argument('-i', '--install', help="Install missing dependencies",
-    #                                   action='store_true')
-
-    version_parser = subparsers.add_parser("versions", help="List versions")  # pylint: disable=unused-variable
-    freemem_parser = subparsers.add_parser("free", help="Get free memory from device") # pylint: disable=unused-variable
+    subparsers.add_parser("dependencies", help="Check dependencies")
+    subparsers.add_parser("versions", help="List versions", aliases=['v'])
+    subparsers.add_parser("free", help="Get free memory from device", aliases='f')
     firmware_parser = subparsers.add_parser("firmware", help="Firmware options", aliases=['fw'])
-    firmwaresubparsers = firmware_parser.add_subparsers(help='Available sub-commands', dest="fwcmd")
-    firmwareversion_parser = firmwaresubparsers.add_parser('version', aliases=['v'])
-    firmwareflash_parser = firmwaresubparsers.add_parser('flash', aliases=['f']) # pylint: disable=unused-variable
-    #firmwareflash_parser.add_argument('--dry-run', action="store_true")
-    #firmwareflash_parser.add_argument('-F', '--firmware-file', default=False,
-    #                                  type=argparse.FileType('r'),
-    #                                  help="Alternate Firmware file.")
-    firmwareversion_subparsers = firmwareversion_parser.add_subparsers(help="Available sub-commands", dest='fwscmd') # pylint: disable=unused-variable,line-too-long
-    firmwareversion_parser_d = firmwareversion_subparsers.add_parser('device',
-                                                                     help="Device Firmware") # pylint: disable=unused-variable
-    firmwareversion_parser_a = firmwareversion_subparsers.add_parser("available", help="Available Firmware") # pylint: disable=unused-variable,line-too-long
-    firmwareversion_parser_all = firmwareversion_subparsers.add_parser("all", help="--all") # pylint: disable=unused-variable
-
+    fwsubparsers = firmware_parser.add_subparsers(help='Available sub-commands', dest="fwcmd")
+    firmwareversion_parser = fwsubparsers.add_parser('version', aliases=['v'])
+    fwsubparsers.add_parser('flash', aliases=['f'])
+    fwv_subparsers = firmwareversion_parser.add_subparsers(help="Available sub-commands",
+                                                           dest='fwscmd')
+    fwv_subparsers.add_parser('device', help="Device Firmware", aliases=['d'])
+    fwv_subparsers.add_parser("available", help="Available Firmware", aliases=['a'])
+    fwv_subparsers.add_parser("lint", help="Lint Firmware in <workdir>", aliases=['l'])
     pin_parser = subparsers.add_parser("pin")
     pin_parser.add_argument('pin', default=False, type=int, help="The pin to do action x with.",
                             metavar="<pin_id>")
@@ -288,10 +293,10 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
     pinmode_parser.add_argument('mode', default=False,
                                 choices=["input", "output", "input_pullup","pwm"],
                                 help="Pin mode. 'input','output','input_pullup', 'pwm'")
-    digitalpin_parser_h = pinsubparsers.add_parser("high", aliases=['h']) # pylint: disable=unused-variable
-    digitalpin_parser_l = pinsubparsers.add_parser("low", aliases=['l'])  # pylint: disable=unused-variable
-    digitalpin_parser_s = pinsubparsers.add_parser("state") # pylint: disable=unused-variable
-    digitalpin_parser_pwm = pinsubparsers.add_parser("pwm") # pylint: disable=unused-variable
+    pinsubparsers.add_parser("high", aliases=['h'])
+    pinsubparsers.add_parser("low", aliases=['l'])
+    pinsubparsers.add_parser("state")
+    digitalpin_parser_pwm = pinsubparsers.add_parser("pwm")
     digitalpin_parser_pwm.add_argument('value', type=int, help='0-255')
 
     args = parser.parse_args()
@@ -312,21 +317,28 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
     if getattr(args, 'fwcmd', False) not in ('flash', 'f'):
         arduino = get_arduino(args, config)
 
-    if args.cmd == "versions":
-        versions()
+    if args.cmd in ('versions', 'v'):
+        print(versions(arduino, config['workdir']))
         sys.exit(0)
     elif args.cmd == "dependencies":
         check_dependencies()
         sys.exit(0)
-    elif args.cmd == "free":
+    elif args.cmd in ('free', 'f'):
         print(arduino.get_free_memory())
         sys.exit(0)
-    elif args.cmd == 'firmware':
+    elif args.cmd in ('firmware', 'fw'):
         if args.fwcmd in ('version', 'v'):
-            if args.fwscmd in ('device', 'd', None):
-                print(arduino.get_firmware_version())
+            _ver = versions(arduino, config['workdir'])
+            print(_ver)
+            if args.fwscmd in ('device', 'd'):
+                print(_ver['device'])
             elif args.fwscmd in ('a', 'available'):
-                print(utils.available_firmware_version(config['workdir']))
+                print(_ver['available'])
+            elif args.fwscmd in ('lint', 'l'):
+                lint_firmware()
+            else:
+                del _ver['pyduin']
+                print(_ver)
         elif args.fwcmd in ('flash', 'f'):
             update_firmware(config)
         sys.exit(0)
