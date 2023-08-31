@@ -31,9 +31,7 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
     analog_pins = False
     digital_pins = False
     pwm_cap_pins = False
-    Pins = False
     Busses = False
-    pinfile = False
 
     # pylint: disable=too-many-arguments
     def __init__(self,  board=False, tty='/dev/ttyUSB0', baudrate=115200, pinfile=False,

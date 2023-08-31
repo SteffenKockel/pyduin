@@ -43,7 +43,7 @@ DallasTemperature *myDallasTemperature = NULL;
 DeviceAddress OneWireAddr;
 
 // firmware version
-String firmware_version = "0.6.3";
+String firmware_version = "0.6.5";
 // arduino id
 int arduino_id = 0;
 // command
@@ -57,9 +57,12 @@ int v;
 // input
 int i;
 // temp
-int pwmPins[6] = {3, 5, 6, 9, 10, 11};
-int analogPins[8] = {14, 15, 16, 17, 18, 19, 20, 21};
-int digitalPins[14] = {0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13};
+int pwmPins[{{ num_pwm_pins }}] = {{ pwm_pins }};
+int num_pwm_Pins = {{ num_pwm_pins }};
+int analogPins[{{ num_analog_pins }}] = {{ analog_pins }};
+int num_analog_pins = {{ num_analog_pins }};
+int digitalPins[{{ num_digital_pins }}] = {{ digital_pins }};
+int num_digital_pins = {{ num_digital_pins }};
 String tmp;
 String pin;
 String val;
@@ -69,7 +72,7 @@ String val;
 
 
 int getPinMode(uint8_t pin) {
-  if (pin >= NUM_DIGITAL_PINS) return (-1);
+  if (pin >= num_digital_pins) return (-1);
 
   uint8_t bit = digitalPinToBitMask(pin);
   uint8_t port = digitalPinToPort(pin);
@@ -107,7 +110,7 @@ void analog_actor_sensor(char c, char t, String tmp, int p, int v) {
           // analog sensor/actor (PWM) WRITE
           // Check, if we really have a PWM capable
           // pin here.
-          for (int j = 0; j < 6; j++) {
+          for (int j = 0; j < num_pwm_Pins; j++) {
             if (pwmPins[j] == p) {
               analogWrite(p, v);
               Serial.println(analogRead(p));

@@ -4,7 +4,7 @@ import logging
 import re
 from collections import OrderedDict
 import yaml
-
+import logging
 
 # Basic user config template
 CONFIG_TEMPLATE = """
@@ -26,6 +26,14 @@ buddies:
 class PyduinUtils:
     """ Wrapper for some useful functions. Exists, to be able to make
     use of @propget decorator and ease handling on the usage side """
+
+    @property
+    def logger(self):
+        """ Return the pyduin log facility
+        @TODO: add option to log to file """
+        logging.basicConfig()
+        logger = logging.getLogger('pyduin')
+        return logger
 
     @property
     def package_root(self):
@@ -123,7 +131,7 @@ class PinFile:
                        key=lambda x: int(x[1]['physical_id']))
 
         for name, pinconfig in self.pins:  # pylint: disable=unused-variable
-            pin_id = pinconfig['physical_id']
+            pin_id = str(pinconfig['physical_id'])
             if pinconfig.get('pin_type') == 'analog':
                 self._analog_pins.append(pin_id)
             elif pinconfig.get('pin_type', 'digital') == 'digital':

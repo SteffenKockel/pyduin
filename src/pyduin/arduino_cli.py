@@ -15,6 +15,7 @@ import subprocess
 import sys
 import time
 
+from jinja2 import Template
 from termcolor import colored
 import yaml
 
@@ -23,8 +24,7 @@ from pyduin.arduino import Arduino, ArduinoConfigError
 from pyduin import _utils as utils
 from pyduin import AttrDict, VERSION
 
-logger = logging.getLogger('pyduin')
-
+logger = utils.logger
 
 def get_basic_config(args):
     """
@@ -82,7 +82,7 @@ def _get_arduino_config(args, config):
     if not arduino_config.get('pinfile'):
         pinfile = os.path.join(utils.pinfiledir, f'{arduino_config["board"]}.yml')
         arduino_config['pinfile'] = pinfile
-
+    logger.debug("device_config: %s", arduino_config)
     config['_arduino_'] = arduino_config
     model = config['_arduino_']['board']
     check_board_support(model, config)
@@ -134,8 +134,11 @@ def get_pyduin_userconfig(args, config):
 
 
 def _get_proxy_tty_name(config):
-    tty = os.path.basename(config['_arduino_']['tty'])
-    proxy_tty = os.path.sep.join(('/tmp', f'{tty}.tty'))
+    logger.debug(config)
+    proxy_tty = config['_arduino_']['tty']
+    if not proxy_tty.endswith('.tty'):
+        proxy_tty = os.path.join(os.sep, 'tmp', f'{os.path.basename(proxy_tty)}.tty')
+    logger.debug("Socat proxy expected at: %s", proxy_tty)
     return proxy_tty
 
 
@@ -154,7 +157,7 @@ def get_arduino(args, config):
         raise ArduinoConfigError(errmsg)
 
     aconfig = config['_arduino_']
-    if config['serial']['use_socat'] and args.cmd != 'flash':
+    if config['serial']['use_socat'] and getattr(args, 'fwcmd', '') != 'flash':
         proxy_tty = _get_proxy_tty_name(config)
 
         #is_proxy_start = not os.path.exists(proxy_tty)
@@ -169,7 +172,6 @@ def get_arduino(args, config):
                           'debug': False
                          }
             socat_cmd = utils.socat_cmd(**socat_opts)
-            print(socat_cmd)
             subprocess.Popen(socat_cmd) # pylint: disable=consider-using-with
             print(colored(f'Started socat proxy on {proxy_tty}', 'cyan'))
             time.sleep(1)
@@ -227,7 +229,6 @@ def update_firmware(config):  # pylint: disable=too-many-locals,too-many-stateme
         pid = subprocess.check_output(cmd, shell=True).strip()
         subprocess.check_output(['kill', f'{pid.decode()}'])
         time.sleep(1)
-    prepare_buildenv(config)
     os.chdir(config['workdir'])
     out = subprocess.check_output(['pio', 'run', '-e', config['_arduino_']['board'], '-t',
                                    'upload', '--upload-port', config['_arduino_']['tty']])
@@ -235,13 +236,33 @@ def update_firmware(config):  # pylint: disable=too-many-locals,too-many-stateme
 
 
 def versions(arduino, workdir):
-    """
-        Print both firmware and package version
-    """
+    """ Print both firmware and package version """
     res = {"pyduin": VERSION,
            "device": arduino.get_firmware_version(),
            "available": utils.available_firmware_version(workdir) }
     return res
+
+def template_firmware(arduino, config):
+    """ Render firmware from template """
+    _tpl = '{%s}'
+    fwenv = {
+        "num_analog_pins": arduino.pinfile.num_analog_pins,
+        "num_digital_pins": arduino.pinfile.num_digital_pins,
+        "num_pwm_pins": arduino.pinfile.num_pwm_pins,
+        "pwm_pins": _tpl % ", ".join(arduino.pinfile.pwm_pins),
+        "analog_pins": _tpl % ", ".join(arduino.pinfile.analog_pins),
+        "digital_pins": _tpl % ", ".join(arduino.pinfile.digital_pins)
+    }
+
+    firmware = f'{os.path.expanduser(config["workdir"])}/src/pyduin.cpp'
+    logger.debug("Using firmware template: %s", firmware)
+    with open(firmware, 'r', encoding='utf-8') as template:
+        tpl = Template(template.read())
+        tpl = tpl.render(fwenv)
+        #logger.debug(tpl)
+
+    with open(firmware, 'w', encoding='utf8') as template:
+        template.write(tpl)
 
 def lint_firmware():
     """ Static code check firmware """
@@ -250,7 +271,7 @@ def lint_firmware():
         res = subprocess.check_output(['cpplint', utils.firmware])
         print(res)
     except subprocess.CalledProcessError:
-        logging.error("The firmware contains errors")
+        logger.error("The firmware contains errors")
 
 def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branches
     """
@@ -278,13 +299,15 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
     subparsers.add_parser("free", help="Get free memory from device", aliases='f')
     firmware_parser = subparsers.add_parser("firmware", help="Firmware options", aliases=['fw'])
     fwsubparsers = firmware_parser.add_subparsers(help='Available sub-commands', dest="fwcmd")
-    firmwareversion_parser = fwsubparsers.add_parser('version', aliases=['v'])
-    fwsubparsers.add_parser('flash', aliases=['f'])
+    firmwareversion_parser = fwsubparsers.add_parser('version', aliases=['v'],
+                                                     help="List firmware versions")
+    fwsubparsers.add_parser('flash', aliases=['f'], help="Flash firmware to device")
+    fwsubparsers.add_parser("lint", help="Lint Firmware in <workdir>", aliases=['l'])
     fwv_subparsers = firmwareversion_parser.add_subparsers(help="Available sub-commands",
                                                            dest='fwscmd')
     fwv_subparsers.add_parser('device', help="Device Firmware", aliases=['d'])
     fwv_subparsers.add_parser("available", help="Available Firmware", aliases=['a'])
-    fwv_subparsers.add_parser("lint", help="Lint Firmware in <workdir>", aliases=['l'])
+
     pin_parser = subparsers.add_parser("pin")
     pin_parser.add_argument('pin', default=False, type=int, help="The pin to do action x with.",
                             metavar="<pin_id>")
@@ -308,15 +331,15 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
         sys.exit(1)
 
     log_level = args.log_level or config.get('log_level', 'info')
-    logging.basicConfig(level=getattr(logging, log_level.upper()))
-    logging.debug(args)
+    logger.setLevel(level=getattr(logging, log_level.upper()))
+    #logger.basicConfig(level=getattr(logger, log_level.upper()))
     # re-read configs to be able to see the log messages.
     basic_config = get_basic_config(args)
     config = get_pyduin_userconfig(args, basic_config)
 
-    if getattr(args, 'fwcmd', False) not in ('flash', 'f'):
-        arduino = get_arduino(args, config)
-
+    #if getattr(args, 'fwcmd', False) not in ('flash', 'f'):
+    arduino = get_arduino(args, config)
+    prepare_buildenv(config)
     if args.cmd in ('versions', 'v'):
         print(versions(arduino, config['workdir']))
         sys.exit(0)
@@ -334,12 +357,15 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
                 print(_ver['device'])
             elif args.fwscmd in ('a', 'available'):
                 print(_ver['available'])
-            elif args.fwscmd in ('lint', 'l'):
-                lint_firmware()
             else:
                 del _ver['pyduin']
                 print(_ver)
+        elif args.fwcmd in ('lint', 'l'):
+            template_firmware(arduino, config)
+            lint_firmware()
         elif args.fwcmd in ('flash', 'f'):
+            template_firmware(arduino, config)
+            lint_firmware()
             update_firmware(config)
         sys.exit(0)
     elif args.cmd == 'pin':
