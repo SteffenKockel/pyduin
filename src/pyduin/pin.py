@@ -112,7 +112,7 @@ class Mode(object):
         return False
 
 
-class ArduinoPin(object):  # pylint: disable=too-many-instance-attributes
+class ArduinoPin:  # pylint: disable=too-many-instance-attributes
     """
            Base Arduino Pin
     """
@@ -148,19 +148,19 @@ class ArduinoPin(object):  # pylint: disable=too-many-instance-attributes
         """
             Set this pin to HIGH
         """
-        message = "<AD%02d001>" % self.pin_id
+        message = f'<AD{self.pin_id:02d}001>'
         return self.arduino.send(message)
 
     def low(self):
         """
             Set this pin to LOW
         """
-        message = "<AD%02d000>" % self.pin_id
+        message = f'<AD{self.pin_id:02d}000>'
         return self.arduino.send(message)
 
     def state(self):
         """
             Determine, if the state is LOW or HIGH
         """
-        message = "<aD%02d000>" % self.pin_id
+        message = f'<aD{self.pin_id:02d}000>'
         return self.arduino.send(message)
