@@ -4,6 +4,7 @@ import logging
 import re
 import subprocess
 import time
+from shutil import copyfile
 from collections import OrderedDict
 from termcolor import colored
 import yaml
@@ -111,6 +112,13 @@ class PyduinUtils:
                 return False
         return False
 
+    @staticmethod
+    def loglevel_int(level):
+        """ Return the integer corresponding to log level string """
+        if isinstance(level, int):
+            return level
+        return getattr(logging, level.upper())
+
 
 class PinFile:
     """ Represents a pinfile and provides functions mostly required for templating
@@ -183,15 +191,13 @@ class SocatProxy:
 
     # pylint: disable=too-many-arguments
     def __init__(self, source_tty, baudrate, proxy_tty=None, config=None,
-                 log_level=logging.DEBUG):
+                 log_level=logging.INFO):
         self.source_tty = source_tty
         self.baudrate = baudrate
         self.proxy_tty = proxy_tty
         self.config = config
         self.logger = PyduinUtils.logger()
-        if not isinstance(log_level, int):
-            log_level = getattr(logging, log_level.upper())
-        self.logger.setLevel(log_level)
+        self.logger.setLevel(PyduinUtils.loglevel_int(log_level))
 
         if not self.proxy_tty:
             proxy_tty = os.path.basename(source_tty)
@@ -219,8 +225,8 @@ class SocatProxy:
 
     def stop(self):
         """ Stop the socat proxy """
-        cmd = f'ps aux | grep socat | grep -v grep | grep {self.proxy_tty} | awk '+"'{ print $2 }'"
-        # cmd = f'pgrep -a socat | grep "{self.proxy_tty}" | grep -Eo "^[0-9]+?"'
+        #cmd = f'ps aux | grep socat | grep -v grep | grep {self.proxy_tty} | awk '+"'{ print $2 }'"
+        cmd = f'pgrep -a socat | grep "{self.proxy_tty}" | grep -Eo "^[0-9]+?"'
         pid = subprocess.check_output(cmd, shell=True).strip()
         subprocess.check_output(['kill', f'{pid.decode()}'])
         time.sleep(1)
@@ -229,3 +235,43 @@ class SocatProxy:
     # @classmethod
     # def get(cls, source_tty, baudrate, proxy_tty=None, config=None):
     #     return(cls, source_tty, baudrate, proxy_tty, config)
+
+class BuildEnv:
+    """ A class that represents a buildenv for device firmware """
+
+    # pylint: disable=too-many-arguments
+    def __init__(self, workdir, board, tty, platformio_ini=False, log_level=logging.INFO):
+        self.utils = PyduinUtils()
+        self.logger = self.utils.logger()
+        self.workdir = os.path.expanduser(workdir)
+        self.board = board
+        self.tty = tty
+        self.platformio_ini = platformio_ini if platformio_ini else self.utils.platformio_ini
+        self.project_dir = os.path.join(workdir, board)
+        self.logger.setLevel(self.utils.loglevel_int(log_level))
+
+    def create(self):
+        """ Create directories and copy over files """
+        os.makedirs(self.project_dir, exist_ok=True)
+        self.logger.debug("Creating workdir in %s if not exists", self.project_dir)
+        platformio_ini_target = os.path.join(self.workdir, 'platformio.ini')
+        if not os.path.isfile(platformio_ini_target):
+            self.logger.debug("Copying: %s", platformio_ini_target)
+            copyfile(self.platformio_ini, platformio_ini_target)
+        board_dir = os.path.join(self.workdir, self.board, 'src')
+        if not os.path.exists(board_dir):
+            self.logger.debug("Creating project_dir %s", board_dir)
+            os.makedirs(board_dir, exist_ok=True)
+        firmware = os.path.join(board_dir, 'pyduin.cpp')
+        if not os.path.isfile(firmware):
+            self.logger.debug("Copying: %s", firmware)
+            copyfile(self.utils.firmware, firmware)
+
+    def build(self):
+        """ Build the firmware and upload it to the device. """
+        os.chdir(self.workdir)
+        cmd = ['pio', 'run', '-e', self.board, '-t', 'upload', '--upload-port', self.tty,
+               '-d', self.project_dir, '-c', self.platformio_ini]
+        print(" ".join(cmd))
+        out = subprocess.check_output(cmd)
+        print(out)

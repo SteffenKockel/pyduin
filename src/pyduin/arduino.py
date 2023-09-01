@@ -8,7 +8,7 @@
 """
 import os
 from collections import OrderedDict
-
+import logging
 import serial
 
 from pyduin import _utils as utils
@@ -30,7 +30,7 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
 
     # pylint: disable=too-many-arguments
     def __init__(self,  board=False, tty=False, baudrate=115200, pinfile=False,
-                 serial_timeout=3, wait=False, socat=False):
+                 serial_timeout=3, wait=False, socat=False, log_level=logging.INFO):
         self.board = board
         self.tty = tty
         self.baudrate = baudrate
@@ -41,11 +41,8 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
         self.serial_timeout = serial_timeout
         self.Pins = OrderedDict()
         self.socat = socat
-
-        # if not self.board or not self.tty or not self.baudrate or not self._pinfile:
-        #     mandatory = ('board', 'tty', 'baudrate', '_pinfile')
-        #     missing = [x.lstrip('_') for x in mandatory if not getattr(self, x)]
-        #     raise ArduinoConfigError(f'The following mandatory options are missing: {missing}')
+        self.logger = utils.logger()
+        self.logger.setLevel(utils.loglevel_int(log_level))
 
         if not os.path.isfile(self._pinfile):
             raise DeviceConfigError(f'Cannot open pinfile: {self._pinfile}')
@@ -61,8 +58,6 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
         try:
             tty = self.socat.proxy_tty if self.socat else self.tty
             self.Connection = serial.Serial(tty, self.baudrate, timeout=self.serial_timeout)  # pylint: disable=invalid-name
-            #if self.cli==False and self.use_socat==False:
-            #time.sleep(1)
             self.setup_pins()
             self.ready = True
         except serial.SerialException as error:
@@ -90,6 +85,7 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
         """
             Send a serial message to the arduino.
         """
+        print(message)
         self.Connection.write(message.encode('utf-8'))
         if self.wait:
             msg = self.Connection.readline().decode('utf-8').strip()

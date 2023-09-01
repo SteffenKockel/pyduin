@@ -22,7 +22,7 @@ import yaml
 
 from pyduin.arduino import Arduino
 from pyduin import _utils as utils
-from pyduin import AttrDict, VERSION, DeviceConfigError, SocatProxy
+from pyduin import AttrDict, VERSION, DeviceConfigError, SocatProxy, BuildEnv
 
 logger = utils.logger()
 
@@ -177,32 +177,26 @@ def check_dependencies():
     return ret
 
 
-def prepare_buildenv(config):
+def prepare_buildenv(arduino, config, args):
     """ Idempotent function that ensures the platformio build env exists and contains
     the required files in the wanted state. """
-    workdir = config['workdir']
-    srcdir = os.path.join(workdir, 'src')
-    os.makedirs(workdir, exist_ok=True)
-    os.makedirs(srcdir, exist_ok=True)
-    platformio_ini = os.path.join(workdir, 'platformio.ini')
-    if not os.path.isfile(platformio_ini):
-        copyfile(config['platformio_ini'], platformio_ini)
-    firmware = os.path.join(workdir, 'src', 'pyduin.cpp')
-    if not os.path.isfile(firmware):
-        copyfile(config['firmware'], firmware)
+
+    buildenv = BuildEnv(config['workdir'], config['_arduino_']['board'],
+                        config['_arduino_']['tty'],
+                        log_level=args.log_level,
+                        platformio_ini=config['platformio_ini'])
+    buildenv.create()
+    setattr(arduino, 'buildenv', buildenv)
 
 
-def update_firmware(arduino, config):  # pylint: disable=too-many-locals,too-many-statements
+def update_firmware(arduino):  # pylint: disable=too-many-locals,too-many-statements
     """
         Update firmware on arduino (cmmi!)
     """
     if arduino.socat:
         arduino.socat.stop()
-    os.chdir(config['workdir'])
-    out = subprocess.check_output(['pio', 'run', '-e', config['_arduino_']['board'], '-t',
-                                   'upload', '--upload-port', config['_arduino_']['tty']])
-    print(out)
 
+    arduino.buildenv.build()
 
 def versions(arduino, workdir):
     """ Print both firmware and package version """
@@ -222,8 +216,8 @@ def template_firmware(arduino, config):
         "analog_pins": _tpl % ", ".join(arduino.pinfile.analog_pins),
         "digital_pins": _tpl % ", ".join(arduino.pinfile.digital_pins)
     }
-
-    firmware = f'{os.path.expanduser(config["workdir"])}/src/pyduin.cpp'
+    workdir = os.path.expanduser(config["workdir"])
+    firmware = os.path.join(workdir, config['_arduino_']['board'], 'src', 'pyduin.cpp')
     logger.debug("Using firmware template: %s", firmware)
     with open(firmware, 'r', encoding='utf-8') as template:
         tpl = Template(template.read())
@@ -308,7 +302,7 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
 
     #if getattr(args, 'fwcmd', False) not in ('flash', 'f'):
     arduino = get_arduino(args, config)
-    prepare_buildenv(config)
+    prepare_buildenv(arduino, config, args)
     if args.cmd in ('versions', 'v'):
         print(versions(arduino, config['workdir']))
         sys.exit(0)
@@ -335,7 +329,7 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
         elif args.fwcmd in ('flash', 'f'):
             template_firmware(arduino, config)
             lint_firmware()
-            update_firmware(arduino, config)
+            update_firmware(arduino)
         sys.exit(0)
     elif args.cmd == 'pin':
         if args.pincmd in ('high', 'low', 'h', 'l'):
