@@ -20,9 +20,9 @@ from termcolor import colored
 import yaml
 
 
-from pyduin.arduino import Arduino, ArduinoConfigError
+from pyduin.arduino import Arduino
 from pyduin import _utils as utils
-from pyduin import AttrDict, VERSION
+from pyduin import AttrDict, VERSION, DeviceConfigError
 
 logger = utils.logger
 
@@ -90,7 +90,7 @@ def _get_arduino_config(args, config):
 
     if not os.path.isfile(arduino_config['pinfile']):
         errmsg = f'Cannot find pinfile {arduino_config["pinfile"]}'
-        raise ArduinoConfigError(errmsg)
+        raise DeviceConfigError(errmsg)
     return config
 
 def verify_buddy(buddy, config):
@@ -99,10 +99,10 @@ def verify_buddy(buddy, config):
     a 'buddies' section at all.
     """
     if not config.get('buddies'):
-        raise ArduinoConfigError("Configfile is missing 'buddies' section")
+        raise DeviceConfigError("Configfile is missing 'buddies' section")
     if not config['buddies'].get(buddy):
         errmsg = f'Buddy "{buddy}" not described in configfile\'s "buddies" section. Aborting.'
-        raise ArduinoConfigError(errmsg)
+        raise DeviceConfigError(errmsg)
     return True
 
 
@@ -154,7 +154,7 @@ def get_arduino(args, config):
     if config['serial']['hang_up_on_close'] and config['serial']['use_socat']:
         errmsg = "Will not handle 'use_socat:yes' in conjunction with 'hang_up_on_close:no'" \
                  "Either set 'use_socat' to 'no' or 'hang_up_on_close' to 'yes'."
-        raise ArduinoConfigError(errmsg)
+        raise DeviceConfigError(errmsg)
 
     aconfig = config['_arduino_']
     if config['serial']['use_socat'] and getattr(args, 'fwcmd', '') != 'flash':
@@ -326,7 +326,7 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
     try:
         basic_config = get_basic_config(args)
         config = get_pyduin_userconfig(args, basic_config)
-    except ArduinoConfigError as error:
+    except DeviceConfigError as error:
         print(colored(error, 'red'))
         sys.exit(1)
 

@@ -4,7 +4,8 @@ import logging
 import re
 from collections import OrderedDict
 import yaml
-import logging
+
+#from .arduino import DeviceConfigError
 
 # Basic user config template
 CONFIG_TEMPLATE = """
@@ -22,6 +23,11 @@ buddies:
     board: uno
 """
 
+
+class DeviceConfigError(BaseException):
+    """
+        Error Class to throw on config errors
+    """
 
 class PyduinUtils:
     """ Wrapper for some useful functions. Exists, to be able to make
@@ -124,6 +130,9 @@ class PinFile:
     pinfile = False
 
     def __init__(self, pinfile):
+        if not os.path.isfile(pinfile):
+            raise DeviceConfigError(f'Cannot open pinfile: {pinfile}')
+
         with open(pinfile, 'r', encoding='utf-8') as pfile:
             self.pinfile = yaml.load(pfile, Loader=yaml.Loader)
 

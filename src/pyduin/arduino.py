@@ -12,16 +12,11 @@ from collections import OrderedDict
 import serial
 
 from pyduin import _utils as utils
-from pyduin import PinFile
+from pyduin import PinFile, DeviceConfigError
 from pyduin.pin import ArduinoPin
 
 IMMEDIATE_RESPONSE = True
 
-
-class ArduinoConfigError(BaseException):
-    """
-        Error Class to throw on config errors
-    """
 
 class Arduino:  # pylint: disable=too-many-instance-attributes
     """
@@ -52,7 +47,7 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
         #     raise ArduinoConfigError(f'The following mandatory options are missing: {missing}')
 
         if not os.path.isfile(self._pinfile):
-            raise ArduinoConfigError(f'Cannot open pinfile: {self._pinfile}')
+            raise DeviceConfigError(f'Cannot open pinfile: {self._pinfile}')
 
         if self.wait:
             self.open_serial_connection()
@@ -71,7 +66,7 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
         except serial.SerialException as error:
             self.ready = False
             errmsg = f'Could not open Serial connection on {self.tty}'
-            raise ArduinoConfigError(errmsg) from error
+            raise DeviceConfigError(errmsg) from error
 
     def setup_pins(self):
         """
@@ -79,10 +74,9 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
         """
         self.pinfile = PinFile(self._pinfile)
 
-        for name, pinconfig in self.pinfile.pins:
-            pin_id = pinconfig['physical_id']
-            Pin = ArduinoPin(self, pin_id, **pinconfig)
-            self.Pins[pin_id] = Pin
+        for _pin in self.pinfile.pins:
+            pin_id = _pin[1]['physical_id']
+            self.Pins[pin_id] = ArduinoPin(self, pin_id, **_pin[1])
 
     def close_serial_connection(self):
         """
