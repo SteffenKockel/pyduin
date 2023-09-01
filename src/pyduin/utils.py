@@ -2,7 +2,10 @@
 import os
 import logging
 import re
+import subprocess
+import time
 from collections import OrderedDict
+from termcolor import colored
 import yaml
 
 #from .arduino import DeviceConfigError
@@ -33,8 +36,8 @@ class PyduinUtils:
     """ Wrapper for some useful functions. Exists, to be able to make
     use of @propget decorator and ease handling on the usage side """
 
-    @property
-    def logger(self):
+    @staticmethod
+    def logger():
         """ Return the pyduin log facility
         @TODO: add option to log to file """
         logging.basicConfig()
@@ -85,17 +88,6 @@ class PyduinUtils:
     def board_pinfile(self, board):
         """ Return the full path to a specific pinfile in the package """
         return os.path.join(self.pinfiledir, f'{board}.yml')
-
-    @staticmethod
-    def socat_cmd(source_tty, proxy_tty, baudrate, debug=False):
-        """ Return assembled socat comd string """
-        common_opts = "cs8,parenb=0,cstopb=0,clocal=0,raw,echo=0,setlk,flock-ex-nb,nonblock=1"
-        cmd = ['/usr/bin/socat', '-s']
-        extra_opts = ['-x', '-ddd', '-ddd'] if debug else ['-d']
-        cmd.extend(extra_opts)
-        cmd.extend([f'{source_tty},b{baudrate},{common_opts}',
-                    f'PTY,link={proxy_tty},b{baudrate},{common_opts}'])
-        return (*cmd,)
 
     @staticmethod
     def ensure_user_config_file(location):
@@ -184,3 +176,56 @@ class AttrDict(dict):
     def __init__(self, *args, **kwargs):
         super(AttrDict, self).__init__(*args, **kwargs)
         self.__dict__ = self
+
+class SocatProxy:
+    """ A class that represents a serial proxy based on socat """
+    debug = False
+
+    # pylint: disable=too-many-arguments
+    def __init__(self, source_tty, baudrate, proxy_tty=None, config=None,
+                 log_level=logging.DEBUG):
+        self.source_tty = source_tty
+        self.baudrate = baudrate
+        self.proxy_tty = proxy_tty
+        self.config = config
+        self.logger = PyduinUtils.logger()
+        if not isinstance(log_level, int):
+            log_level = getattr(logging, log_level.upper())
+        self.logger.setLevel(log_level)
+
+        if not self.proxy_tty:
+            proxy_tty = os.path.basename(source_tty)
+            self.proxy_tty = os.path.join(os.sep, 'tmp', f'{proxy_tty}.tty')
+            self.logger.debug("Socat proxy expected at: %s", self.proxy_tty)
+
+    @property
+    def socat_cmd(self):
+        """ Return assembled socat comd string """
+        common_opts = "cs8,parenb=0,cstopb=0,clocal=0,raw,echo=0,setlk,flock-ex-nb,nonblock=1"
+        cmd = ['/usr/bin/socat', '-s']
+        extra_opts = ['-x', '-ddd', '-ddd'] if self.debug else ['-d']
+        cmd.extend(extra_opts)
+        cmd.extend([f'{self.source_tty},b{self.baudrate},{common_opts}',
+                    f'PTY,link={self.proxy_tty},b{self.baudrate},{common_opts}'])
+        return (*cmd,)
+
+    def start(self):
+        """ Start the socat proxy """
+        if not os.path.exists(self.proxy_tty):
+            subprocess.check_output(['stty', '-F', self.source_tty, 'hupcl'])
+            subprocess.Popen(self.socat_cmd) # pylint: disable=consider-using-with
+            print(colored(f'Started socat proxy on {self.proxy_tty}', 'cyan'))
+            time.sleep(1)
+
+    def stop(self):
+        """ Stop the socat proxy """
+        cmd = f'ps aux | grep socat | grep -v grep | grep {self.proxy_tty} | awk '+"'{ print $2 }'"
+        # cmd = f'pgrep -a socat | grep "{self.proxy_tty}" | grep -Eo "^[0-9]+?"'
+        pid = subprocess.check_output(cmd, shell=True).strip()
+        subprocess.check_output(['kill', f'{pid.decode()}'])
+        time.sleep(1)
+
+
+    # @classmethod
+    # def get(cls, source_tty, baudrate, proxy_tty=None, config=None):
+    #     return(cls, source_tty, baudrate, proxy_tty, config)

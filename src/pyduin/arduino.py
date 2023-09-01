@@ -29,8 +29,8 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
     Busses = False
 
     # pylint: disable=too-many-arguments
-    def __init__(self,  board=False, tty='/dev/ttyUSB0', baudrate=115200, pinfile=False,
-                 serial_timeout=3, wait=False):
+    def __init__(self,  board=False, tty=False, baudrate=115200, pinfile=False,
+                 serial_timeout=3, wait=False, socat=False):
         self.board = board
         self.tty = tty
         self.baudrate = baudrate
@@ -40,6 +40,7 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
         self.wait = wait
         self.serial_timeout = serial_timeout
         self.Pins = OrderedDict()
+        self.socat = socat
 
         # if not self.board or not self.tty or not self.baudrate or not self._pinfile:
         #     mandatory = ('board', 'tty', 'baudrate', '_pinfile')
@@ -58,7 +59,8 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
             according to pinfile.
         """
         try:
-            self.Connection = serial.Serial(self.tty, self.baudrate, timeout=self.serial_timeout)  # pylint: disable=invalid-name
+            tty = self.socat.proxy_tty if self.socat else self.tty
+            self.Connection = serial.Serial(tty, self.baudrate, timeout=self.serial_timeout)  # pylint: disable=invalid-name
             #if self.cli==False and self.use_socat==False:
             #time.sleep(1)
             self.setup_pins()
@@ -100,19 +102,17 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
             return msg
         return True
 
-    def get_firmware_version(self):
-        """
-            Get arduino firmware version
-        """
+    @property
+    def firmware_version(self):
+        """ Get arduino firmware version """
         res = self.send("<zv00000>")
         if self.wait:
             return res.split("%")[-1]
         return True
 
-    def get_free_memory(self):
-        """
-            Return the free memory from the arduino
-        """
+    @property
+    def free_memory(self):
+        """ Return the free memory from the arduino """
         res = self.send("<zz00000>")
         if self.wait:
             return res.split("%")[-1]

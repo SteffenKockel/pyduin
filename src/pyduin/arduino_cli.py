@@ -22,9 +22,9 @@ import yaml
 
 from pyduin.arduino import Arduino
 from pyduin import _utils as utils
-from pyduin import AttrDict, VERSION, DeviceConfigError
+from pyduin import AttrDict, VERSION, DeviceConfigError, SocatProxy
 
-logger = utils.logger
+logger = utils.logger()
 
 def get_basic_config(args):
     """
@@ -132,16 +132,6 @@ def get_pyduin_userconfig(args, config):
     config = _get_arduino_config(args, config)
     return config
 
-
-def _get_proxy_tty_name(config):
-    logger.debug(config)
-    proxy_tty = config['_arduino_']['tty']
-    if not proxy_tty.endswith('.tty'):
-        proxy_tty = os.path.join(os.sep, 'tmp', f'{os.path.basename(proxy_tty)}.tty')
-    logger.debug("Socat proxy expected at: %s", proxy_tty)
-    return proxy_tty
-
-
 def get_arduino(args, config):
     """
         Get an arduino object, open the serial connection if it is the first connection
@@ -157,30 +147,14 @@ def get_arduino(args, config):
         raise DeviceConfigError(errmsg)
 
     aconfig = config['_arduino_']
-    if config['serial']['use_socat'] and getattr(args, 'fwcmd', '') != 'flash':
-        proxy_tty = _get_proxy_tty_name(config)
-
-        #is_proxy_start = not os.path.exists(proxy_tty)
-        # start the socat proxy
-        if not os.path.exists(proxy_tty):
-            # Enforce hulpc:on
-            subprocess.check_output(['stty', '-F', aconfig['tty'], 'hupcl'])
-            #time.sleep(1)
-            socat_opts = {'baudrate': aconfig['baudrate'],
-                          'source_tty': aconfig['tty'],
-                          'proxy_tty': proxy_tty,
-                          'debug': False
-                         }
-            socat_cmd = utils.socat_cmd(**socat_opts)
-            subprocess.Popen(socat_cmd) # pylint: disable=consider-using-with
-            print(colored(f'Started socat proxy on {proxy_tty}', 'cyan'))
-            time.sleep(1)
-
-        aconfig['tty'] = proxy_tty
+    socat = False
+    if config['serial']['use_socat']: #and getattr(args, 'fwcmd', '') not in ('flash', 'f'):
+        socat = SocatProxy(aconfig['tty'], aconfig['baudrate'], log_level=args.log_level)
+        socat.start()
 
     arduino = Arduino(tty=aconfig['tty'], baudrate=aconfig['baudrate'],
                   pinfile=aconfig['pinfile'], board=aconfig['board'],
-                  wait=True)
+                  wait=True, socat=socat)
     return arduino
 
 def check_dependencies():
@@ -218,17 +192,12 @@ def prepare_buildenv(config):
         copyfile(config['firmware'], firmware)
 
 
-def update_firmware(config):  # pylint: disable=too-many-locals,too-many-statements
+def update_firmware(arduino, config):  # pylint: disable=too-many-locals,too-many-statements
     """
         Update firmware on arduino (cmmi!)
     """
-    proxy_tty = _get_proxy_tty_name(config)
-    if os.path.exists(proxy_tty):
-        print(colored("Socat proxy running. Stopping.", 'red'))
-        cmd = f'ps aux | grep socat | grep -v grep | grep {proxy_tty} | awk '+"'{ print $2 }'"
-        pid = subprocess.check_output(cmd, shell=True).strip()
-        subprocess.check_output(['kill', f'{pid.decode()}'])
-        time.sleep(1)
+    if arduino.socat:
+        arduino.socat.stop()
     os.chdir(config['workdir'])
     out = subprocess.check_output(['pio', 'run', '-e', config['_arduino_']['board'], '-t',
                                    'upload', '--upload-port', config['_arduino_']['tty']])
@@ -238,7 +207,7 @@ def update_firmware(config):  # pylint: disable=too-many-locals,too-many-stateme
 def versions(arduino, workdir):
     """ Print both firmware and package version """
     res = {"pyduin": VERSION,
-           "device": arduino.get_firmware_version(),
+           "device": arduino.firmware_version,
            "available": utils.available_firmware_version(workdir) }
     return res
 
@@ -347,7 +316,7 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
         check_dependencies()
         sys.exit(0)
     elif args.cmd in ('free', 'f'):
-        print(arduino.get_free_memory())
+        print(arduino.free_memory)
         sys.exit(0)
     elif args.cmd in ('firmware', 'fw'):
         if args.fwcmd in ('version', 'v'):
@@ -366,7 +335,7 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
         elif args.fwcmd in ('flash', 'f'):
             template_firmware(arduino, config)
             lint_firmware()
-            update_firmware(config)
+            update_firmware(arduino, config)
         sys.exit(0)
     elif args.cmd == 'pin':
         if args.pincmd in ('high', 'low', 'h', 'l'):
