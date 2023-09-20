@@ -12,7 +12,7 @@ import logging
 import serial
 
 from pyduin import _utils as utils
-from pyduin import PinFile, DeviceConfigError
+from pyduin import PinFile, DeviceConfigError, SocatProxy
 from pyduin.pin import ArduinoPin
 
 IMMEDIATE_RESPONSE = True
@@ -48,6 +48,12 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
         if not os.path.isfile(self._pinfile):
             raise DeviceConfigError(f'Cannot open pinfile: {self._pinfile}')
 
+        if not self.baudrate:
+            self.baudrate = self.pinfile.baudrate
+
+        if self.socat:
+            self.socat = SocatProxy(self.tty, self.baudrate, log_level=log_level)
+
         if self.wait and self.tty and self.baudrate:
             self.open_serial_connection()
 
@@ -58,6 +64,8 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
         """
         try:
             tty = self.socat.proxy_tty if self.socat else self.tty
+            if self.socat:
+                self.socat.start()
             self.Connection = serial.Serial(tty, self.baudrate, timeout=self.serial_timeout)  # pylint: disable=invalid-name
             self.setup_pins()
             self.ready = True

@@ -1,5 +1,7 @@
 pin_type: arduino
 model: Uno
+baudrate: 115200
+
 Pins:
   Pin2:
     physical_id: 2

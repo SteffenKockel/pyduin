@@ -144,14 +144,14 @@ def get_arduino(args, config):
         raise DeviceConfigError(errmsg)
 
     aconfig = config['_arduino_']
-    socat = False
-    if config['serial']['use_socat'] and getattr(args, 'fwcmd', '') not in ('flash', 'f'):
-        socat = SocatProxy(aconfig['tty'], aconfig['baudrate'], log_level=args.log_level)
-        socat.start()
+    # socat = False
+    # if config['serial']['use_socat'] and getattr(args, 'fwcmd', '') not in ('flash', 'f'):
+    #     socat = SocatProxy(aconfig['tty'], aconfig['baudrate'], log_level=args.log_level)
+    #     socat.start()
 
     arduino = Arduino(tty=aconfig['tty'], baudrate=aconfig['baudrate'],
                   pinfile=aconfig['pinfile'], board=aconfig['board'],
-                  wait=True, socat=socat)
+                  wait=True, socat=config['serial']['use_socat'])
     return arduino
 
 def check_dependencies():

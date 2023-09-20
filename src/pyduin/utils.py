@@ -128,6 +128,7 @@ class PinFile:
     _pwm_pins = []
     pins = OrderedDict()
     _pinfile = False
+    _baudrate = False
 
     def __init__(self, pinfile):
         if not os.path.isfile(pinfile):
@@ -147,6 +148,8 @@ class PinFile:
                 self._digital_pins.append(pin_id)
             if pinconfig.get('pwm_capable'):
                 self._pwm_pins.append(pin_id)
+
+        self._baudrate = self._pinfile['baudrate']
 
     @property
     def analog_pins(self):
@@ -187,6 +190,11 @@ class PinFile:
             if extra_libs:
                 return fwcfg['extra_libs']
         return []
+
+    @property
+    def baudrate(self):
+        """ Return the baudrate used to connect to this board """
+        return self._baudrate
 
 
 class AttrDict(dict):
@@ -280,7 +288,7 @@ class BuildEnv:
     def build(self):
         """ Build the firmware and upload it to the device. """
         os.chdir(self.workdir)
-        cmd = ['pio', 'run', '-e', self.board, '-t', 'upload',
+        cmd = ['pio', 'run', '-e', self.board, '-t', 'upload', '--upload-port', self.tty,
                '-d', self.project_dir, '-c', self.platformio_ini]
         self.logger.debug(cmd)
         out = subprocess.check_output(cmd)
