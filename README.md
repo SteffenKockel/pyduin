@@ -103,8 +103,6 @@ It can also be done without the buddy list.
 pyduin --board nanoatmega328 --tty=/dev/mytty flash
 ```
 
-If the `--firmware` option is omitted, then the project firmware gets applied.
-
 #### Control the Arduinos pins
 
 Opening a serial connection **resets most Arduinos**. `pyduin` circumvents this drawback with a `socat` proxy. Also another variant (`hupcl:off`) is in the pipeline. The difference is, that `socat` will set all pin modes on startup while the `hupcl` approach will require the user to set the pin mode manually. The big plus of the `hupcl` approach independence of third party applications.
