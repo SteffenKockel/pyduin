@@ -43,11 +43,12 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
         self.socat = socat
         self.logger = utils.logger()
         self.logger.setLevel(utils.loglevel_int(log_level))
+        self.pinfile = PinFile(self._pinfile)
 
         if not os.path.isfile(self._pinfile):
             raise DeviceConfigError(f'Cannot open pinfile: {self._pinfile}')
 
-        if self.wait:
+        if self.wait and self.tty and self.baudrate:
             self.open_serial_connection()
 
     def open_serial_connection(self):
@@ -69,8 +70,6 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
         """
             Setup pins according to pinfile.
         """
-        self.pinfile = PinFile(self._pinfile)
-
         for _pin in self.pinfile.pins:
             pin_id = _pin[1]['physical_id']
             self.Pins[pin_id] = ArduinoPin(self, pin_id, **_pin[1])
