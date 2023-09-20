@@ -127,16 +127,16 @@ class PinFile:
     _digital_pins = []
     _pwm_pins = []
     pins = OrderedDict()
-    pinfile = False
+    _pinfile = False
 
     def __init__(self, pinfile):
         if not os.path.isfile(pinfile):
             raise DeviceConfigError(f'Cannot open pinfile: {pinfile}')
 
         with open(pinfile, 'r', encoding='utf-8') as pfile:
-            self.pinfile = yaml.load(pfile, Loader=yaml.Loader)
+            self._pinfile = yaml.load(pfile, Loader=yaml.Loader)
 
-        self.pins = sorted(list(self.pinfile['Pins'].items()),
+        self.pins = sorted(list(self._pinfile['Pins'].items()),
                        key=lambda x: int(x[1]['physical_id']))
 
         for name, pinconfig in self.pins:  # pylint: disable=unused-variable
@@ -177,6 +177,16 @@ class PinFile:
     def num_pwm_pins(self):
         """ Return the number of pwm-capable pins """
         return len(self._pwm_pins)
+
+    @property
+    def extra_libs(self):
+        """ Return a list of extra libraries to include in the firmware """
+        fwcfg = self._pinfile.get('firmware', False )
+        if fwcfg:
+            extra_libs = fwcfg.get('extra_libs', False)
+            if extra_libs:
+                return fwcfg['extra_libs']
+        return []
 
 
 class AttrDict(dict):
@@ -270,8 +280,8 @@ class BuildEnv:
     def build(self):
         """ Build the firmware and upload it to the device. """
         os.chdir(self.workdir)
-        cmd = ['pio', 'run', '-e', self.board, '-t', 'upload', '--upload-port', self.tty,
+        cmd = ['pio', 'run', '-e', self.board, '-t', 'upload',
                '-d', self.project_dir, '-c', self.platformio_ini]
-        print(" ".join(cmd))
+        self.logger.debug(cmd)
         out = subprocess.check_output(cmd)
         print(out)

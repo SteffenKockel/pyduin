@@ -10,10 +10,9 @@ import argparse
 import configparser
 import logging
 import os
-from shutil import copyfile, which
+from shutil import which
 import subprocess
 import sys
-import time
 
 from jinja2 import Template
 from termcolor import colored
@@ -75,10 +74,8 @@ def _get_arduino_config(args, config):
                 logger.debug("%s not set in buddylist", opt)
 
     # Ensure defaults.
-    if not arduino_config.get('tty'):
-        arduino_config['tty'] = '/dev/ttyUSB0'
-    if not arduino_config.get('baudrate'):
-        arduino_config['baudrate'] = 115200
+    arduino_config['tty'] = arduino_config.get('tty', False)
+    arduino_config['baudrate'] = arduino_config.get('baudrate', False)
     if not arduino_config.get('pinfile'):
         pinfile = os.path.join(utils.pinfiledir, f'{arduino_config["board"]}.yml')
         arduino_config['pinfile'] = pinfile
@@ -148,7 +145,7 @@ def get_arduino(args, config):
 
     aconfig = config['_arduino_']
     socat = False
-    if config['serial']['use_socat']: #and getattr(args, 'fwcmd', '') not in ('flash', 'f'):
+    if config['serial']['use_socat'] and getattr(args, 'fwcmd', '') not in ('flash', 'f'):
         socat = SocatProxy(aconfig['tty'], aconfig['baudrate'], log_level=args.log_level)
         socat.start()
 
@@ -214,7 +211,9 @@ def template_firmware(arduino, config):
         "num_pwm_pins": arduino.pinfile.num_pwm_pins,
         "pwm_pins": _tpl % ", ".join(arduino.pinfile.pwm_pins),
         "analog_pins": _tpl % ", ".join(arduino.pinfile.analog_pins),
-        "digital_pins": _tpl % ", ".join(arduino.pinfile.digital_pins)
+        "digital_pins": _tpl % ", ".join(arduino.pinfile.digital_pins),
+        "extra_libs": '\n'.join(arduino.pinfile.extra_libs),
+        "baudrate": arduino.baudrate
     }
     workdir = os.path.expanduser(config["workdir"])
     firmware = os.path.join(workdir, config['_arduino_']['board'], 'src', 'pyduin.cpp')

@@ -1,5 +1,6 @@
 // Copyright 2023 Steffen Kockel info@steffen-kockel.de
 // License MIT
+{{ extra_libs }}
 #include <DHT.h>
 #include <string.h>
 #include <OneWire.h>
@@ -85,7 +86,7 @@ int getPinMode(uint8_t pin) {
 
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin({{ baudrate }});
   Serial.println("Boot complete");
 }
 
