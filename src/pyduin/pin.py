@@ -9,29 +9,30 @@
 import weakref
 
 
-class PWM(object):
+class PWM:
     """
         A pulse width modulation object
     """
 
-    def __init__(self, Pin):
-        self.Pin = weakref.proxy(Pin)
+    def __init__(self, pin):
+        self.pin = weakref.proxy(pin)
+        self.logger = self.pin.arduino.logger
 
-    def enable(self, value=0):  # pylint: disable=no-self-use
+    def enable(self, value=0):
         """
             Enable PWM for this pin
         """
-        print(""" Enable pwm for pin with value %s""" % value)
+        self.logger.info(" Enable pwm for pin %s with value %s", self.pin.pin_id, value)
         return True
 
-    def disable(self):  # pylint: disable=no-self-use
+    def disable(self):
         """
             Disable PWM for this pin
         """
         print(""" Disable pwm """)
         return True
 
-    def state(self):  # pylint: disable=no-self-use
+    def state(self):
         """
             Determine PWM state and level
         """
@@ -39,65 +40,66 @@ class PWM(object):
         return True
 
 
-class Mode(object):
+class Mode:
     """
         A pin mode object
     """
 
-    def __init__(self, Pin, pin_mode):
-        self.Pin = weakref.proxy(Pin)
+    def __init__(self, pin, pin_mode):
+        self.pin = weakref.proxy(pin)
         self.wanted_mode = pin_mode
-        self._setpinmodetext = f'Set pin mode for pin {self.Pin.pin_id} to'
-        if not self.Pin.arduino.wait:
+        self._setpinmodetext = f'Set pin mode for pin {self.pin.pin_id} to'
+        if not self.pin.arduino.wait:
             self.set_mode(pin_mode)
+        self.logger = self.pin.arduino.logger
 
     def analog_or_digital(self):
         """
             Get the pin type (analog or digital)
         """
-        return self.Pin.pin_type
+        return self.pin.pin_type
 
     def output(self):
         """
             Set mode for this pin to output
         """
-        self.wanted_mode = self.Pin.pin_mode = 'output'
-        print("""%s OUTPUT""" % self._setpinmodetext)
+        self.wanted_mode = self.pin.pin_mode = 'output'
+        self.logger.info('%s OUTPUT', self._setpinmodetext)
         message = "<MO%02d001>" if self.analog_or_digital() == 'digital' else "<MO%s030>"
-        message = message % self.Pin.pin_id
-        self.Pin.pin_mode = 'output'
-        return self.Pin.arduino.send(message)
+        message = message % self.pin.pin_id
+        self.pin.pin_mode = 'output'
+        return self.pin.arduino.send(message)
 
     def input(self):
         """
             Set mode for this pin to INPUT
         """
-        self.wanted_mode = self.Pin.pin_mode = 'input'
+        self.wanted_mode = self.pin.pin_mode = 'input'
         self.wanted_mode = 'input'
-        print("""%s INPUT""" % self._setpinmodetext)
+        self.logger.info("%s INPUT", self._setpinmodetext)
         message = "<MI%02d000>" if self.analog_or_digital() == 'digital' else "<MI%s000>"
-        message = message % self.Pin.pin_id
-        self.Pin.pin_mode = 'input'
-        return self.Pin.arduino.send(message)
+        message = message % self.pin.pin_id
+        self.pin.pin_mode = 'input'
+        return self.pin.arduino.send(message)
 
     def input_pullup(self):
         """
             Set mode for this pin to INPUT_PULLUP
         """
-        self.wanted_mode = self.Pin.pin_mode = 'input_pullup'
-        print("""%s INPUT_PULLUP""" % self._setpinmodetext)
+        self.wanted_mode = self.pin.pin_mode = 'input_pullup'
+        self.logger.info("%s INPUT_PULLUP", self._setpinmodetext)
         message = "<MP%02d000>" if self.analog_or_digital() == 'digital' else "<MP%s000>"
-        message = message % self.Pin.pin_id
-        self.Pin.pin_mode = 'input_pullup'
-        return self.Pin.arduino.send(message)
+        message = message % self.pin.pin_id
+        self.pin.pin_mode = 'input_pullup'
+        return self.pin.arduino.send(message)
 
     def get_mode(self):
         """
             Get the mode from this pin
         """
         message = "<mm%02d000>" if self.analog_or_digital() == 'digital' else "<mm%sd000>"
-        message = message % self.Pin.pin_id
-        return self.Pin.arduino.send(message)
+        message = message % self.pin.pin_id
+        return self.pin.arduino.send(message)
 
     def set_mode(self, mode):
         """
@@ -108,7 +110,7 @@ class Mode(object):
         modesetter = getattr(self, mode.lower(), False)
         if modesetter:
             return modesetter()
-        print("Could not set mode %s for pin %s", mode, self.Pin.pin_id)
+        print("Could not set mode %s for pin %s", mode, self.pin.pin_id)
         return False
 
 
@@ -126,10 +128,10 @@ class ArduinoPin:  # pylint: disable=too-many-instance-attributes
         self.pwm_capable = config.get('pwm_capable', False)
         self.pwm_enabled = config.get('pwm_enabled', False)
         self.pin_mode = config.get('pin_mode', 'input_pullup')
-        if self.pwm_capable:
-            self.pwm = PWM(self)
-        if self.pwm_capable and self.pwm_enabled:
-            self.pwm.enable('0')
+        #if self.pwm_capable:
+        #    self.pwm = PWM(self)
+        #if self.pwm_capable and self.pwm_enabled:
+        #    self.pwm.enable('0')
         self.Mode = Mode(self, self.pin_mode)  # pylint: disable=invalid-name
 
     def set_mode(self, mode):
@@ -164,3 +166,6 @@ class ArduinoPin:  # pylint: disable=too-many-instance-attributes
         """
         message = f'<aD{self.pin_id:02d}000>'
         return self.arduino.send(message)
+
+    def pwm(self, value=0):
+        message = ''
