@@ -331,12 +331,17 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
             update_firmware(arduino)
         sys.exit(0)
     elif args.cmd == 'pin':
-        if args.pincmd in ('high', 'low', 'h', 'l'):
+        if args.pincmd in ('high', 'low', 'h', 'l', 'pwm', 'p'):
             act = args.pincmd
             act = 'high' if act == 'h' else act
             act = 'low' if act == 'l' else act
+            act = 'pwm' if act == 'p' else act
             pin = arduino.Pins[args.pin]
-            res = getattr(pin, act)()
+            func = getattr(pin, act)
+            if act == 'pwm':
+                res = func(args.value)
+            else:
+                res = func()
             logger.debug(res)
         elif args.pincmd == 'mode' and args.mode in ('input_pullup', 'input', 'output', 'pwm'):
             pin = arduino.Pins[args.pin]

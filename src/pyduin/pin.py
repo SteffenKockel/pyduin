@@ -168,4 +168,9 @@ class ArduinoPin:  # pylint: disable=too-many-instance-attributes
         return self.arduino.send(message)
 
     def pwm(self, value=0):
-        message = ''
+        """
+            Set pin to a specific pwm value
+        """
+        # @TODO, check, if the pin is indeed a pwm capable pin
+        message = f'<AA{self.pin_id:02d}{value:03d}>'
+        return self.arduino.send(message)

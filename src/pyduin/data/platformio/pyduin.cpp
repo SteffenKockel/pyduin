@@ -44,7 +44,7 @@ DallasTemperature *myDallasTemperature = NULL;
 DeviceAddress OneWireAddr;
 
 // firmware version
-String firmware_version = "0.6.5";
+String firmware_version = "0.6.6";
 // arduino id
 int arduino_id = 0;
 // command
@@ -97,6 +97,18 @@ void invalid_command(String S) {
 }
 
 
+void pwm(int p, int v) {
+  // analog sensor/actor (PWM) WRITE
+  // Check, if we really have a PWM capable
+  // pin here.
+  for (int j = 0; j < num_pwm_Pins; j++) {
+    if (pwmPins[j] == p) {
+      analogWrite(p, v);
+      Serial.println(v);
+    }
+  }
+}
+
 void analog_actor_sensor(char c, char t, String tmp, int p, int v) {
   switch (t) {
     // analog actor/sensor
@@ -108,21 +120,10 @@ void analog_actor_sensor(char c, char t, String tmp, int p, int v) {
           Serial.println(analogRead(p));
           break;
         case 'A':
-          // analog sensor/actor (PWM) WRITE
-          // Check, if we really have a PWM capable
-          // pin here.
-          for (int j = 0; j < num_pwm_Pins; j++) {
-            if (pwmPins[j] == p) {
-              analogWrite(p, v);
-              Serial.println(analogRead(p));
-            }
-          }
+          pwm(p, v);
           break;
-        default:
-          invalid_command(tmp);
-          break;
-        break;
       }
+      break;
     // digital actor/sensor
     case 'D':
     // digital actor/sensor READ
@@ -138,6 +139,7 @@ void analog_actor_sensor(char c, char t, String tmp, int p, int v) {
           Serial.println(digitalRead(p));
           break;
       }
+      break;
   }
 }
 
