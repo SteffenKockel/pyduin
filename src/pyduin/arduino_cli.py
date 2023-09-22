@@ -270,7 +270,8 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
     fwv_subparsers.add_parser('device', help="Device Firmware", aliases=['d'])
     fwv_subparsers.add_parser("available", help="Available Firmware", aliases=['a'])
 
-    pin_parser = subparsers.add_parser("pin")
+    pin_parser = subparsers.add_parser("pin", help="Pin related actions (high,low,pwm)",
+                                        aliases=['p'])
     pin_parser.add_argument('pin', default=False, type=int, help="The pin to do action x with.",
                             metavar="<pin_id>")
     pinsubparsers = pin_parser.add_subparsers(help="Available sub-commands", dest="pincmd")
