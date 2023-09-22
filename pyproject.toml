@@ -9,6 +9,9 @@ where = ["src"]
 "pyduin.data.pinfiles" = ["*.yml"]
 "pyduin.data.platformio" = ["platformio.ini", "pyduin.ino"]
 
+[tool.distutils.bdist_wheel]
+universal = true
+
 [project]
 name = "pyduin"
 version = "0.6.2"
