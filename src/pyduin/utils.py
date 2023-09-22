@@ -157,10 +157,10 @@ class PinFile:
         with open(pinfile, 'r', encoding='utf-8') as pfile:
             self._pinfile = yaml.load(pfile, Loader=yaml.Loader)
 
-        self.pins = sorted(list(self._pinfile['Pins'].items()),
-                       key=lambda x: int(x[1]['physical_id']))
+        self.pins = sorted(list(self._pinfile['pins']),
+                       key=lambda x: int(x['physical_id']))
 
-        for name, pinconfig in self.pins:  # pylint: disable=unused-variable
+        for pinconfig in self.pins:  # pylint: disable=unused-variable
             pin_id = str(pinconfig['physical_id'])
             if pinconfig.get('pin_type') == 'analog':
                 self._analog_pins.append(pin_id)
@@ -215,6 +215,15 @@ class PinFile:
     def baudrate(self):
         """ Return the baudrate used to connect to this board """
         return self._baudrate
+
+    def get_pin_config(self, pin_id):
+        """ Return the configuration dict of a pin """
+        try:
+            return list(filter(lambda x: pin_id in (x['physical_id'], x.get('alias')), self.pins))[0]
+        except IndexError:
+            return {}
+
+
 
 
 class AttrDict(dict):
