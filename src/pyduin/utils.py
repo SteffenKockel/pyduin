@@ -13,6 +13,7 @@ import yaml
 
 # Basic user config template
 CONFIG_TEMPLATE = """
+log_level: info
 
 serial:
   use_socat: no
