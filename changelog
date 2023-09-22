@@ -1,5 +1,10 @@
 = pyduin changelog
 
+== 0.6.3
+
+* Add default_buddy configuration option
+* Bring back pin alias names for analog pins
+
 == 0.6.2
 
 * Implement PWM functionality
