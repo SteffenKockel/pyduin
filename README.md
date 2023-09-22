@@ -91,6 +91,10 @@ pyduin --tty /dev/USB0 --baudrate 115200 --board nanoatmega328 pin 5 pwm 125
 ```
 To connect to a device `--tty` and `--board` arguments are required.
 
+## Configuration file
+
+Pyduin creates a configuration file in `~/.pyduin.yaml` from a template. This file contains some generic settings and the buddy list.
+
 ### The buddy list
 
 The buddy-list feature allows one to define known devices aka buddies. In `~/.pyduin.yml` a dictionary of buddies can be declared. 
@@ -108,6 +112,12 @@ The buddies can be used in the command line interface.
 
 ```
 pyduin -B uber pin 13 high
+```
+
+A `default_buddy` can be defined in the configuration file. This allows to target a device that is known and appropriately configured, without specifying the buddy option.
+
+```
+pyduin pin 13 high
 ```
 
 ### Flashing firmware to the Arduino
