@@ -26,6 +26,7 @@ classifiers = [
 ]
 requires-python = ">3"
 dependencies = [
+    "cpplint",
     "jinja2",
     "platformio",
     "PyYAML",
