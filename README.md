@@ -1,16 +1,16 @@
 # pyduin
 
-A Python wrapper for Arduino and other IOT devices such as ESP. It aims to support everything, that platformio supports. It consists of two parts
+Pyduin is a Python wrapper for Arduino and other IOT devices such as ESP. It aims to support everything, that platformio supports. The following components are part of the package.
 
 * A python library
-* A commandline interface
 * A firmware to be loaded onto the device
+* A command-line interface (to flash the firmware)
 
-### What for?
+## What for?
 
-To interact seamless with an Arduino or other IOT device from within Python. Once a device has the correct firmware applied, one can set pin modes, pin states, pwm values and more.
+Pyduin makes it easy to interact with an Arduino or other IOT device from within Python. Once a device has the correct firmware applied, one can set pin modes, pin states, pwm values and more.
 
-This makes it easy to wire a sensor to an IOT device, connect it to a computer and start working with the sensor values in Python. The library supports:
+This makes it easy to wire a sensor, switch to an IOT device, connect it to a computer and start working with the sensor values in Python. The library supports:
 
 - Analog read and write (wip)
 - Digital read and write
@@ -19,7 +19,7 @@ This makes it easy to wire a sensor to an IOT device, connect it to a computer a
 - SPI
 - ...
 
-### Device support
+## Device support
 
 In theory, any device supported by [platformio](https://platformio.org/) can work. Currently, the following devices are supported
 
@@ -35,10 +35,11 @@ Only `pip` installs are available.
 ```bash
 pip install pyduin
 ```
+## Dependency socat
 
-### Dependency socat
+Opening a serial connection **resets most Arduinos**. `pyduin` circumvents this drawback with a `socat` proxy.
 
-To make meaningful use of the CLI features, the installation and usage of `soact` is recommendet. To activate usage, edit `~/.pyduin.yml` and set `use_socat` to `yes` (default).
+To make meaningful use of the command-line features, the installation and usage of `soact` is recommended. To activate usage, edit `~/.pyduin.yml` and set `use_socat` to `yes` (default).
 ```yaml
 serial:
   use_socat: yes
@@ -57,66 +58,83 @@ from pyduin import _utils as utils
 board = 'nanoatmega328'
 pinfile = utils.board_pinfile(board)
 
-Arduino = arduino.Arduino(board=board, tty='/dev/ttyUSB0',
-                          pinfile=pinfile, baudrate=115200, wait=True)
+Arduino = arduino.Arduino(board=board,
+                          tty='/dev/ttyUSB0',
+                          pinfile=pinfile,
+                          baudrate=115200,
+                          wait=True)
 Arduino.open_serial_connection()
-print(Arduino.get_firmware_version())
+print(Arduino.firmware_version)
 Arduino.Pins[13].set_mode('OUTPUT')
-Arduino.Pins[13].low()
-print(Arduino.get_free_memory())
-```
-## CLI
-
-The following command turns on the onboard LED on an Arduino Nano
-```
-pyduin -t /dev/ttyUSB0 --board nanoatmega328 pin 13 high 
+Arduino.Pins[13].high()
+print(Arduino.free_memory)
 ```
 
-To connect to a device, it is necessary to specify the `baudrate`, `tty` and `model`(board) arguments. Since there are some defaults set (see: `pyduin --help`), only differing arguments need to be specified. The following call shows the default values for `baudrate` and `tty` ommited, but `pinfile` and `model` present. This means that implicitly `/dev/ttyUSB0` will be used and the connection speed will be `115200` baud.
+## Command-line
 
-#### The buddy list
+The command-line interface provides a help page for all options and commands.
 
-The buddy-list feature allows one to define buddies. Here the same defaults apply as when invoked from command line. Thus only differences need to be specified.
+```
+pyduin --help
+```
 
+Every positional argument that serves as a subcommand, has it's own help page.
+
+```
+pyduin firmware|pin|dependencies|versions --help
+```
+
+Most of the commands have shorter aliases. The following command sets the pwm value for pin 5 to 125.
+
+```
+pyduin --tty /dev/USB0 --baudrate 115200 --board nanoatmega328 pin 5 pwm 125
+```
+To connect to a device `--tty` and `--board` arguments are required.
+
+### The buddy list
+
+The buddy-list feature allows one to define known devices aka buddies. In `~/.pyduin.yml` a dictionary of buddies can be declared. 
 ```yaml
 buddies:
   uber:
-    board: nanoatmega328 # as in platformio
-    tty: /dev/uber
-    pinfile: ~/nanoatmega328_pins_dev.yml # optional 
-    ino: ~/arduino-sketchbook/uber/uber.ino # optional
+    board: nanoatmega328 # as in platformio. required.
+    tty: /dev/uber # required
+    baudrate: 115200 # default derived from pinfile, optional
+  under:
+    board: uno
+    tty: /dev/ttyUSB0
 ```
+The buddies can be used in the command line interface.
 
 ```
 pyduin -B uber pin 13 high
 ```
-## 
 
-#### Flashing firmware to the Arduino
+### Flashing firmware to the Arduino
 
-Then the buddies can be addressed with the `-B` option. The following example would build the `.ino` file from the example above and flash it to the Arduino. 
 ```
-pyduin -B uber flash
+pyduin --buddy uber firmware flash
 ```
 It can also be done without the buddy list.
 ```
-pyduin --board nanoatmega328 --tty=/dev/mytty flash
+pyduin --board nanoatmega328 --tty=/dev/mytty fw f
 ```
 
 #### Control the Arduinos pins
 
-Opening a serial connection **resets most Arduinos**. `pyduin` circumvents this drawback with a `socat` proxy. Also another variant (`hupcl:off`) is in the pipeline. The difference is, that `socat` will set all pin modes on startup while the `hupcl` approach will require the user to set the pin mode manually. The big plus of the `hupcl` approach independence of third party applications.
+ Using the command-line, the pins can be controlled as follows. The following command can be used to switch on and off digital pins.
+
 ```
 pyduin --buddy uber pin 4 {high|low}
 ```
-Also the pin mode can be set
+The pin mode can be set as follows
 ```
 pyduin -B uber pin 4 mode {input|ouput|input_pullup,pwm}
 ```
 #### Get firmware version from the Arduino
 
-```
-pyduin --buddy uber firmware
+```h
+pyduin --buddy uber firmware version [device|available]
 ```
 #### Get free memory from the Arduino
 
@@ -134,7 +152,9 @@ virtualenv .
 pip install -e .
 ```
 
+Pull requests welcome.
+
 ### Add device
 
 Adding a device works, by editing the `~/.pyduin/platformio.ini` and and provide a `pinfile`. These files and folders gets created, when attempting to flash firmware. Changes made here are preserved. A device must also provide a [pinfile](https://github.com/SteffenKockel/pyduin/tree/master/src/pyduin/data/pinfiles). The name of the pinfile should have the name of the corresponding board name (as in platformio).
-When developing, the pinfile can just be added in the repo structure. To test a pinfile while not in development mode, the `-p` option can be used.
+When developing, the pinfile can just be added in the Repository structure. To test a pinfile while not in development mode, the `-p` option can be used.
