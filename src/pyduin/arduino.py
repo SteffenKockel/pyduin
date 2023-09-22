@@ -92,7 +92,7 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
         """
             Send a serial message to the arduino.
         """
-        print(message)
+        # print(message)
         self.Connection.write(message.encode('utf-8'))
         if self.wait:
             msg = self.Connection.readline().decode('utf-8').strip()
