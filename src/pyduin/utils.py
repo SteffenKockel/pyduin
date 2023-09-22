@@ -14,6 +14,7 @@ import yaml
 # Basic user config template
 CONFIG_TEMPLATE = """
 log_level: info
+#default_buddy: nano1
 
 serial:
   use_socat: no

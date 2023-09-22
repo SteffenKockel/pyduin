@@ -45,7 +45,9 @@ def get_basic_config(args):
 
     cfg['firmware'] = getattr(args, "firmware_file", False) or utils.firmware
     logger.debug("Using firmware from: %s", cfg['firmware'])
-    
+    if not args.buddy and not args.board and cfg.get('default_buddy'):
+        args.buddy = cfg['default_buddy']
+
     board = args.board or utils.get_buddy_cfg(cfg, args.buddy, 'board')
 
     if board:
