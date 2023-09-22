@@ -45,7 +45,7 @@ def get_basic_config(args):
 
     cfg['firmware'] = getattr(args, "firmware_file", False) or utils.firmware
     logger.debug("Using firmware from: %s", cfg['firmware'])
-
+    
     board = args.board or utils.get_buddy_cfg(cfg, args.buddy, 'board')
 
     if board:
@@ -310,7 +310,7 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
             lint_firmware()
             update_firmware(arduino)
         sys.exit(0)
-    elif args.cmd == 'pin':
+    elif args.cmd in ('pin', 'p'):
         if args.pincmd in ('high', 'low', 'h', 'l', 'pwm', 'p'):
             act = args.pincmd
             act = 'high' if act == 'h' else act
@@ -327,6 +327,10 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
             pin = arduino.Pins[args.pin]
             res = pin.set_mode(args.mode)
             logger.debug(res)
+        elif args.pincmd == 'state':
+            pin = arduino.Pins[args.pin]
+            res = pin.read()
+            print(res.split('%')[-1])
         sys.exit(0)
     else:
         print("Nothing to do")

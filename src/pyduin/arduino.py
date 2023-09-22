@@ -78,9 +78,8 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
         """
             Setup pins according to pinfile.
         """
-        for _pin in self.pinfile.pins:
-            pin_id = _pin[1]['physical_id']
-            self.Pins[pin_id] = ArduinoPin(self, pin_id, **_pin[1])
+        for pin in self.pinfile.pins:
+            self.Pins[pin['physical_id']] = ArduinoPin(self, **pin)
 
     def close_serial_connection(self):
         """

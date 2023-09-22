@@ -121,9 +121,9 @@ class ArduinoPin:  # pylint: disable=too-many-instance-attributes
 
     role = False
 
-    def __init__(self, arduino, pin_id, **pin_config):
+    def __init__(self, arduino, **pin_config):
         self.arduino = weakref.proxy(arduino)  # pylint: disable=invalid-name
-        self.pin_id = int(pin_id)
+        self.pin_id = pin_config['physical_id']
         self.pin_type = pin_config.get('pin_type', 'digital')
         self.pwm_capable = pin_config.get('pwm_capable', False)
         self.pwm_enabled = pin_config.get('pwm_enabled', False)
@@ -165,6 +165,13 @@ class ArduinoPin:  # pylint: disable=too-many-instance-attributes
             Determine, if the state is LOW or HIGH
         """
         message = f'<aD{self.pin_id:02d}000>'
+        return self.arduino.send(message)
+
+    def read(self):
+        """
+            Read-out a pin. 
+        """
+        message = f'<a{self.pin_type[0].upper()}{self.pin_id:02d}000>'
         return self.arduino.send(message)
 
     def pwm(self, value=0):
