@@ -1,5 +1,12 @@
 = pyduin changelog
 
+== 0.6.2
+
+* Implement PWM functionality
+* Firmware templates to support multiple devices with one firmware
+* Build environment for different devices
+* Firmware linting with cpplint
+
 == 0.6.1
 
 * Move from Arduino IDE to platformio
