@@ -10,7 +10,6 @@ import argparse
 import configparser
 import logging
 import os
-from shutil import which
 import subprocess
 import sys
 
@@ -154,26 +153,6 @@ def get_arduino(args, config):
                   wait=True, socat=config['serial']['use_socat'])
     return arduino
 
-def check_dependencies():
-    """
-        Check, if platformio and socat are available.
-    """
-    ret = True
-    pio = which('pio')
-    if pio:
-        logger.info("Platformio found in %s.", pio)
-    else:
-        logger.warning("Platformio not installed. Flashing does not work.")
-        ret = False
-    socat = which('socat')
-    if socat:
-        logger.info("Socat found in %s", socat)
-    else:
-        logger.warning("Socat not found. Some features may not work.")
-        ret = False
-    return ret
-
-
 def prepare_buildenv(arduino, config, args):
     """ Idempotent function that ensures the platformio build env exists and contains
     the required files in the wanted state. """
@@ -307,7 +286,7 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
         print(versions(arduino, config['workdir']))
         sys.exit(0)
     elif args.cmd == "dependencies":
-        check_dependencies()
+        utils.dependencies()
         sys.exit(0)
     elif args.cmd in ('free', 'f'):
         print(arduino.free_memory)

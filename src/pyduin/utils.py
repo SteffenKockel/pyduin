@@ -4,7 +4,7 @@ import logging
 import re
 import subprocess
 import time
-from shutil import copyfile
+from shutil import copyfile, which
 from collections import OrderedDict
 from termcolor import colored
 import yaml
@@ -118,6 +118,25 @@ class PyduinUtils:
         if isinstance(level, int):
             return level
         return getattr(logging, level.upper())
+
+    @staticmethod
+    def dependencies():
+        """ Check, if platformio and socat are available. """
+        ret = True
+        pio = which('pio')
+        if pio:
+            print(colored(f'Platformio found in {pio}.', 'green'))
+        else:
+            print(colored('Platformio not installed. Flashing does not work.'))
+            ret = False
+        socat = which('socat')
+        if socat:
+            print(colored(f'Socat found in {socat}.', 'green'))
+        else:
+            print(colored('Socat not found. Some features may not work.', 'red'))
+            ret = False
+        return ret
+
 
 
 class PinFile:
