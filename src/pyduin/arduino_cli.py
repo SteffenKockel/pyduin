@@ -20,7 +20,7 @@ import yaml
 
 from pyduin.arduino import Arduino
 from pyduin import _utils as utils
-from pyduin import AttrDict, VERSION, DeviceConfigError, SocatProxy, BuildEnv
+from pyduin import AttrDict, VERSION, DeviceConfigError, BuildEnv
 
 logger = utils.logger()
 
@@ -130,7 +130,7 @@ def get_pyduin_userconfig(args, config):
     config = _get_arduino_config(args, config)
     return config
 
-def get_arduino(args, config):
+def get_arduino(config):
     """
         Get an arduino object, open the serial connection if it is the first connection
         or wait=True (socat off/unavailable) and return it. To circumvent restarts of
@@ -282,7 +282,7 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
     config = get_pyduin_userconfig(args, basic_config)
 
     #if getattr(args, 'fwcmd', False) not in ('flash', 'f'):
-    arduino = get_arduino(args, config)
+    arduino = get_arduino(config)
     prepare_buildenv(arduino, config, args)
     if args.cmd in ('versions', 'v'):
         print(versions(arduino, config['workdir']))
