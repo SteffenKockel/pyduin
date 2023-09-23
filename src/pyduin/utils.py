@@ -220,7 +220,8 @@ class PinFile:
     def get_pin_config(self, pin_id):
         """ Return the configuration dict of a pin """
         try:
-            return list(filter(lambda x: pin_id in (x['physical_id'], x.get('alias')), self.pins))[0]
+            return list(filter(lambda x: pin_id in (x['physical_id'],
+                        x.get('alias')), self.pins))[0]
         except IndexError:
             return {}
 
@@ -230,6 +231,7 @@ class PinFile:
 class AttrDict(dict):
     """ Helper class to ease the handling of ini files with configparser. """
     def __init__(self, *args, **kwargs):
+        # pylint: disable=super-with-arguments
         super(AttrDict, self).__init__(*args, **kwargs)
         self.__dict__ = self
 
