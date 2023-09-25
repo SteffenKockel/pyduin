@@ -9,37 +9,6 @@
 import weakref
 
 
-class PWM:
-    """
-        A pulse width modulation object
-    """
-
-    def __init__(self, pin):
-        self.pin = weakref.proxy(pin)
-        self.logger = self.pin.arduino.logger
-
-    def enable(self, value=0):
-        """
-            Enable PWM for this pin
-        """
-        self.logger.info(" Enable pwm for pin %s with value %s", self.pin.pin_id, value)
-        return True
-
-    def disable(self):
-        """
-            Disable PWM for this pin
-        """
-        print(""" Disable pwm """)
-        return True
-
-    def state(self):
-        """
-            Determine PWM state and level
-        """
-        print(""" Get PWM state """)
-        return True
-
-
 class Mode:
     """
         A pin mode object
@@ -123,15 +92,11 @@ class ArduinoPin:  # pylint: disable=too-many-instance-attributes
 
     def __init__(self, arduino, **pin_config):
         self.arduino = weakref.proxy(arduino)  # pylint: disable=invalid-name
-        self.pin_id = pin_config['physical_id'] # self.arduino.pinfile.normalize_pin_id(pin_config['physical_id'])
+        self.pin_id = pin_config['physical_id']
         self.pin_type = pin_config.get('pin_type', 'digital')
         self.pwm_capable = pin_config.get('pwm_capable', False)
         self.pwm_enabled = pin_config.get('pwm_enabled', False)
         self.pin_mode = pin_config.get('pin_mode', 'input_pullup')
-        #if self.pwm_capable:
-        #    self.pwm = PWM(self)
-        #if self.pwm_capable and self.pwm_enabled:
-        #    self.pwm.enable('0')
         self.Mode = Mode(self, self.pin_mode)  # pylint: disable=invalid-name
 
     def set_mode(self, mode):
