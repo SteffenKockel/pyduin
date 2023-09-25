@@ -125,13 +125,6 @@ class ArduinoPin:  # pylint: disable=too-many-instance-attributes
         message = f'<AD{self.pin_id:02d}000>'
         return self.arduino.send(message)
 
-    def state(self):
-        """
-            Determine, if the state is LOW or HIGH
-        """
-        message = f'<aD{self.pin_id:02d}000>'
-        return self.arduino.send(message)
-
     def read(self):
         """
             Read-out a pin. 

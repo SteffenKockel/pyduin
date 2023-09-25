@@ -262,7 +262,7 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
                                 help="Pin mode. 'input','output','input_pullup', 'pwm'")
     pinsubparsers.add_parser("high", aliases=['h'])
     pinsubparsers.add_parser("low", aliases=['l'])
-    pinsubparsers.add_parser("state")
+    pinsubparsers.add_parser("read")
     digitalpin_parser_pwm = pinsubparsers.add_parser("pwm")
     digitalpin_parser_pwm.add_argument('value', type=int, help='0-255')
 
@@ -332,7 +332,7 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
             pin = arduino.get_pin(args.pin)
             res = pin.set_mode(args.mode)
             logger.debug(res)
-        elif args.pincmd == 'state':
+        elif args.pincmd == 'read':
             pin = arduino.get_pin(args.pin)
             res = pin.read()
             print(res.split('%')[-1])
