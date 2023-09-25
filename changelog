@@ -2,6 +2,7 @@
 
 == 0.6.3
 
+* Add test case for pin file
 * Add default_buddy configuration option
 * Bring back pin alias names for analog pins
 
