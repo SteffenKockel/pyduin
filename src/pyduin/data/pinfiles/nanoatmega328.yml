@@ -34,6 +34,7 @@ pins:
     pwm_capable: True
   - physical_id: 12
   - physical_id: 13
+    alias: D13
     mode: output
   - physical_id: 14
     mode: input
@@ -65,4 +66,4 @@ pins:
   - physical_id: 21
     pin_type: analog
     mode: input_pullup
-    Alias: A7
+    alias: A7

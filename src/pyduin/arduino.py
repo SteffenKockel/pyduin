@@ -81,6 +81,11 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
         for pin in self.pinfile.pins:
             self.Pins[pin['physical_id']] = ArduinoPin(self, **pin)
 
+    def get_pin(self, pin):
+        """ Return the pin object of a given pin (or it's alias) """
+        pin = self.pinfile.normalize_pin_id(pin)
+        return self.Pins[pin]
+
     def close_serial_connection(self):
         """
             Close the serial connection to the arduino.

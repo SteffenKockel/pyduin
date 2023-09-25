@@ -123,7 +123,7 @@ class ArduinoPin:  # pylint: disable=too-many-instance-attributes
 
     def __init__(self, arduino, **pin_config):
         self.arduino = weakref.proxy(arduino)  # pylint: disable=invalid-name
-        self.pin_id = pin_config['physical_id']
+        self.pin_id = pin_config['physical_id'] # self.arduino.pinfile.normalize_pin_id(pin_config['physical_id'])
         self.pin_type = pin_config.get('pin_type', 'digital')
         self.pwm_capable = pin_config.get('pwm_capable', False)
         self.pwm_enabled = pin_config.get('pwm_enabled', False)

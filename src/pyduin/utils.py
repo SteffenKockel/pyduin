@@ -35,6 +35,12 @@ class DeviceConfigError(BaseException):
         Error Class to throw on config errors
     """
 
+class PinNotFoundError(BaseException):
+    """ Error class to throw, when a pin cannot be found"""
+    def __init__(self, pin, *args, **kwargs):
+        msg=f'Pin {pin} cannot be resolved to a pin on the device.'
+        super().__init__(msg, *args, **kwargs)
+
 class PyduinUtils:
     """ Wrapper for some useful functions. Exists, to be able to make
     use of @propget decorator and ease handling on the usage side """
@@ -147,6 +153,7 @@ class PinFile:
     _analog_pins = []
     _digital_pins = []
     _pwm_pins = []
+    _physical_pin_ids = []
     pins = OrderedDict()
     _pinfile = False
     _baudrate = False
@@ -158,11 +165,13 @@ class PinFile:
         with open(pinfile, 'r', encoding='utf-8') as pfile:
             self._pinfile = yaml.load(pfile, Loader=yaml.Loader)
 
+        #print(self._pinfile['pins'])
         self.pins = sorted(list(self._pinfile['pins']),
                        key=lambda x: int(x['physical_id']))
 
         for pinconfig in self.pins:  # pylint: disable=unused-variable
-            pin_id = str(pinconfig['physical_id'])
+            pin_id = pinconfig['physical_id']
+            self._physical_pin_ids.append(pin_id)
             if pinconfig.get('pin_type') == 'analog':
                 self._analog_pins.append(pin_id)
             elif pinconfig.get('pin_type', 'digital') == 'digital':
@@ -203,6 +212,11 @@ class PinFile:
         return len(self._pwm_pins)
 
     @property
+    def physical_pin_ids(self):
+        """ Return a list of all pins """
+        return self._physical_pin_ids
+
+    @property
     def extra_libs(self):
         """ Return a list of extra libraries to include in the firmware """
         fwcfg = self._pinfile.get('firmware', False )
@@ -217,10 +231,31 @@ class PinFile:
         """ Return the baudrate used to connect to this board """
         return self._baudrate
 
-    def get_pin_config(self, pin_id):
+    def normalize_pin_id(self, pin_id):
+        """ Return the physical_id of a pin. This function is used to
+        translate back pin alias names such as A[09]+ to a pin number
+        """
+        if isinstance(pin_id, str):
+            try:
+                pin_id = [{'physical_id': int(pin_id)}]
+            except ValueError:
+                pin_id = list(filter(lambda x:  x.get('alias') == pin_id, self.pins))
+
+            try:
+                pin_id = pin_id[0]['physical_id']
+            except IndexError:
+                raise PinNotFoundError(pin_id)
+
+        if not pin_id in self.physical_pin_ids:
+            raise PinNotFoundError(pin_id)
+        return pin_id
+        #return int(self.get_pin_config(pin_id)['physical_id'])
+
+    def get_pin_config(self, pin_id:int):
         """ Return the configuration dict of a pin """
+        print(type(pin_id))
         try:
-            return list(filter(lambda x: pin_id in (x['physical_id'],
+            return list(filter(lambda x: pin_id in ((x['physical_id']),
                         x.get('alias')), self.pins))[0]
         except IndexError:
             return {}

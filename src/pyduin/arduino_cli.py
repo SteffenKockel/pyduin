@@ -253,7 +253,7 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
 
     pin_parser = subparsers.add_parser("pin", help="Pin related actions (high,low,pwm)",
                                         aliases=['p'])
-    pin_parser.add_argument('pin', default=False, type=int, help="The pin to do action x with.",
+    pin_parser.add_argument('pin', default=False, type=str, help="The pin to do action x with.",
                             metavar="<pin_id>")
     pinsubparsers = pin_parser.add_subparsers(help="Available sub-commands", dest="pincmd")
     pinmode_parser = pinsubparsers.add_parser("mode", help="Set pin modes")
@@ -284,6 +284,9 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
     #if getattr(args, 'fwcmd', False) not in ('flash', 'f'):
     arduino = get_arduino(config)
     prepare_buildenv(arduino, config, args)
+    #args.pin = arduino.pinfile.normalize_pin_id(args.pin)
+
+
     if args.cmd in ('versions', 'v'):
         print(versions(arduino, config['workdir']))
         sys.exit(0)
@@ -318,7 +321,7 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
             act = 'high' if act == 'h' else act
             act = 'low' if act == 'l' else act
             act = 'pwm' if act == 'p' else act
-            pin = arduino.Pins[args.pin]
+            pin = arduino.get_pin(args.pin)
             func = getattr(pin, act)
             if act == 'pwm':
                 res = func(args.value)
@@ -326,11 +329,11 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
                 res = func()
             logger.debug(res)
         elif args.pincmd == 'mode' and args.mode in ('input_pullup', 'input', 'output', 'pwm'):
-            pin = arduino.Pins[args.pin]
+            pin = arduino.get_pin(args.pin)
             res = pin.set_mode(args.mode)
             logger.debug(res)
         elif args.pincmd == 'state':
-            pin = arduino.Pins[args.pin]
+            pin = arduino.get_pin(args.pin)
             res = pin.read()
             print(res.split('%')[-1])
         sys.exit(0)
