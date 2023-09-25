@@ -243,8 +243,8 @@ class PinFile:
 
             try:
                 pin_id = pin_id[0]['physical_id']
-            except IndexError:
-                raise PinNotFoundError(pin_id)
+            except IndexError as exc:
+                raise PinNotFoundError(pin_id) from exc
 
         if not pin_id in self.physical_pin_ids:
             raise PinNotFoundError(pin_id)
