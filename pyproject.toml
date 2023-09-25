@@ -14,7 +14,7 @@ universal = true
 
 [project]
 name = "pyduin"
-version = "0.6.2"
+version = "0.6.3"
 description = "Extensive Arduino abstraction"
 readme = "README.md"
 authors = [

@@ -6,4 +6,4 @@ from pyduin.utils import PyduinUtils, AttrDict, PinFile, DeviceConfigError, Soca
 _utils = PyduinUtils()
 
 # pylint: disable=unused-variable
-VERSION = "0.6.2"
+VERSION = "0.6.3"
