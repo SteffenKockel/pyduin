@@ -4,6 +4,9 @@
 [![PyPI license](https://img.shields.io/pypi/l/pyduin.svg)](https://pypi.python.org/pypi/pyduin/)
 [![PyPI download month](https://img.shields.io/pypi/dm/pyduin.svg)](https://pypi.python.org/pypi/pyduin/)
 [![PyPI version fury.io](https://badge.fury.io/py/pyduin.svg)](https://pypi.python.org/pypi/pyduin/)
+[![GitHub latest commit](https://badgen.net/github/last-commit/steffenkockel/pyduin)](https://GitHub.com/steffenkockel/pyduin/commit/)
+[![PyPI status](https://img.shields.io/pypi/status/pyduin.svg)](https://pypi.python.org/pypi/pyduin/)
+
 
 
 Pyduin is a Python wrapper for Arduino and other IOT devices such as ESP. It aims to support everything, that platformio supports. The following components are part of the package.
