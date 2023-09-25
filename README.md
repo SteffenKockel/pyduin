@@ -7,8 +7,6 @@
 [![GitHub latest commit](https://badgen.net/github/last-commit/steffenkockel/pyduin)](https://GitHub.com/steffenkockel/pyduin/commit/)
 [![PyPI status](https://img.shields.io/pypi/status/pyduin.svg)](https://pypi.python.org/pypi/pyduin/)
 
-
-
 Pyduin is a Python wrapper for Arduino and other IOT devices such as ESP. It aims to support everything, that platformio supports. The following components are part of the package.
 
 * A python library
@@ -21,11 +19,13 @@ Pyduin makes it easy to interact with an Arduino or other IOT device from within
 
 This makes it easy to wire a sensor, switch to an IOT device, connect it to a computer and start working with the sensor values in Python. The library supports:
 
-- Analog read and write (wip)
+- Analog read and write
 - Digital read and write
-- OneWire
-- DHT Sensors
-- SPI
+- PWM
+- Pin modes
+- OneWire (firmware works, not yet implemented in lib)
+- DHT Sensors (firmware works, not yet implemented in lib)
+- SPI (firmware works, not yet implemented in lib)
 - ...
 
 ## Device support
