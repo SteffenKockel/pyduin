@@ -12,7 +12,7 @@ from pyduin import _utils as utils
 CONFIG = {
     'tty': '/dev/ttyUSB0',
     'baudrate': '115200',
-    'pinfile': 'tests/data/boardfiles/nano.yml',
+    'boardfile': 'tests/data/boardfiles/nano.yml',
     'board': 'nanoatmega328' 
 }
 
@@ -20,7 +20,7 @@ CONFIG = {
 class TestArduinoFirmwareMethods(unittest.TestCase):
 
     def setUp(self):
-        CONFIG['pinfile'] = utils.board_pinfile(CONFIG['board'])
+        CONFIG['boardfile'] = utils.board_boardfile(CONFIG['board'])
         self.arduino = arduino.Arduino(wait=True, **CONFIG)
 
     # def tearDown(self):
