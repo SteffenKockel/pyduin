@@ -1,6 +1,7 @@
 # pyduin
 
 [![Pylint](https://github.com/SteffenKockel/pyduin/actions/workflows/pylint.yml/badge.svg)](https://github.com/SteffenKockel/pyduin/actions/workflows/pylint.yml)
+[![Yamllint](https://github.com/SteffenKockel/pyduin/actions/workflows/yamllint.yml/badge.svg)](https://github.com/SteffenKockel/pyduin/actions/workflows/yamllint.yml)
 [![PyPI license](https://img.shields.io/pypi/l/pyduin.svg)](https://pypi.python.org/pypi/pyduin/)
 [![PyPI download month](https://img.shields.io/pypi/dm/pyduin.svg)](https://pypi.python.org/pypi/pyduin/)
 [![PyPI version fury.io](https://badge.fury.io/py/pyduin.svg)](https://pypi.python.org/pypi/pyduin/)
