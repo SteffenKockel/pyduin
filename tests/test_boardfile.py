@@ -5,7 +5,7 @@ import pytest
 from pyduin.utils import PinNotFoundError
 from pyduin import PinFile
 
-PINFILE = 'tests/data/pinfiles/nano.yml'
+PINFILE = 'tests/data/boardfiles/nano.yml'
 
 # pylint: disable=missing-docstring
 class TestArduinoPinFile:

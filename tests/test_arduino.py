@@ -12,7 +12,7 @@ from pyduin import _utils as utils
 CONFIG = {
     'tty': '/dev/ttyUSB0',
     'baudrate': '115200',
-    'pinfile': 'tests/data/pinfiles/nano.yml',
+    'pinfile': 'tests/data/boardfiles/nano.yml',
     'board': 'nanoatmega328' 
 }
 

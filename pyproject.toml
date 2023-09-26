@@ -6,7 +6,7 @@ namespaces = true
 where = ["src"]
 
 [tool.setuptools.package-data]
-"pyduin.data.pinfiles" = ["*.yml"]
+"pyduin.data.boardfiles" = ["*.yml"]
 "pyduin.data.platformio" = ["platformio.ini", "pyduin.ino"]
 
 [tool.distutils.bdist_wheel]
