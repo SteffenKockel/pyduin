@@ -1,5 +1,5 @@
----  # Github pylint action file
-name: Pylint
+---  # Yamllint github action file
+name: Yamllint
 
 on: [push]  # yamllint disable-line rule:truthy
 
@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.8", "3.9", "3.10"]
+        python-version: ["3.10"]
     steps:
       - uses: actions/checkout@v3
       - name: Set up Python ${{ matrix.python-version }}
@@ -18,8 +18,9 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pylint
-          pip install -r tests/requirements.txt
+          pip install yamllint
       - name: Analysing the code with pylint
         run: |
-          pylint --rcfile tests/pylint.conf $(git ls-files '*.py')
+          yamllint src/pyduin/data/boardfiles/ \
+            tests/data/boardfiles/ \
+            .github/workflows/
