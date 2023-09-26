@@ -1,3 +1,4 @@
+---
 pin_type: arduino
 model: Uno
 baudrate: 115200
@@ -5,45 +6,57 @@ baudrate: 115200
 pins:
   - physical_id: 2
   - physical_id: 3
-    pin_mode: output
-    pwm_capable: True
+    extra:
+      - pwm
   - physical_id: 4
-    pin_mode: output
   - physical_id: 5
-    pwm_capable: True
+    extra:
+      - pwm
   - physical_id: 6
-    pwm_capable: True
+    extra:
+      - pwm
   - physical_id: 7
   - physical_id: 8
   - physical_id: 9
-    pwm_capable: True
+    extra:
+      - pwm
   - physical_id: 10
-    pwm_capable: True
+    extra:
+      - pwm
+      - ss
   - physical_id: 11
-    pwm_capable: True
+    extra:
+      - pwm
+      - mosi
   - physical_id: 12
+    extra:
+      - miso
   - physical_id: 13
-    pin_mode: output
+    extra:
+      - sck
   - physical_id: 14
-    pin_mode: input
-    pin_type: analog
+    extra:
+      - analog
     alias: A0
   - physical_id: 15
-    mode: input
-    pin_type: analog
+    extra:
+      - analog
     alias: A1
   - physical_id: 16
-    pin_mode: input
-    pin_type: analog
+    extra:
+      - analog
     alias: A2
   - physical_id: 17
-    pin_mode: input
-    pin_type: analog
+    extra:
+      - analog
     alias: A3
   - physical_id: 18
-    mode: input
-    pin_type: analog
+    extra:
+      - analaog
+      - sda
     alias: A4
   - physical_id: 19
-    pin_type: analog
+    extra:
+      - analog
+      - scl
     alias: A5

@@ -1,3 +1,4 @@
+---
 pin_type: arduino
 model: nanoatmega328
 baudrate: 115200

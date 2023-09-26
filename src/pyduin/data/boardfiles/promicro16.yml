@@ -1,3 +1,4 @@
+---
 pin_type: arduino
 model: promicro16
 baudrate: 115200
@@ -66,4 +67,4 @@ pins:
   - physical_id: 21
     extra:
       - analog
-    alias: A3 
+    alias: A3
