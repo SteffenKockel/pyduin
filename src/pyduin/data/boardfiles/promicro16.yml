@@ -1,0 +1,69 @@
+pin_type: arduino
+model: promicro16
+baudrate: 115200
+
+pins:
+  - physical_id: 0
+    extra:
+      - tx
+  - physical_id: 1
+    extra:
+      - rx
+  - physical_id: 2
+    extra:
+      - sda
+  - physical_id: 3
+    extra:
+      - scl
+      - pwm
+  - physical_id: 4
+    alias: A6
+    extra:
+      - analog
+  - physical_id: 5
+    extra:
+      - pwm
+  - physical_id: 6
+    extra:
+      - pwm
+      - analog
+    alias: A7
+  - physical_id: 7
+  - physical_id: 8
+    extra:
+      - analog
+    alias: A8
+  - physical_id: 9
+    extra:
+      - analog
+      - pwm
+    alias: A9
+  - physical_id: 10
+    extra:
+      - analog
+      - pwm
+  - physical_id: 14
+    extra:
+      - miso
+  - physical_id: 15
+    extra:
+      - sclk
+  - physical_id: 16
+    extra:
+      - mosi
+  - physical_id: 18
+    extra:
+      - analog
+    alias: A0
+  - physical_id: 19
+    extra:
+      - analog
+    alias: A1
+  - physical_id: 20
+    extra:
+      - analog
+    alias: A2
+  - physical_id: 21
+    extra:
+      - analog
+    alias: A3 
