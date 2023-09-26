@@ -24,8 +24,18 @@ class TestArduinoBoardFile:
         assert self.pinfile.pwm_pins == expected
 
     def test_led_pins(self):
-        expected = [3, 5, 13]
-        assert self.pinfile.led_pins == expected
+        expected = [{'led1': 3},{'led10': 5},{'led': 13}]
+        assert self.pinfile.leds == expected
+
+    def test_i2c_interfaces(self):
+        expected = {'1': {'sda1': 7, 'scl1': 8},
+                    '20': {'sda20': 10, 'scl20': 11},
+                    '0': {'sda': 18, 'scl': 19}}
+        assert self.pinfile.i2c_interfaces == expected
+
+    def test_spi_interfaces(self):
+        expected = {'0': {'ss': 10, 'mosi': 11, 'miso': 12, 'sck': 13}}
+        assert self.pinfile.spi_interfaces == expected
 
     def test_all_physical_pins(self):
         expected = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
@@ -41,4 +51,3 @@ class TestArduinoBoardFile:
         for data in dataset:
             with pytest.raises(PinNotFoundError) as result:
                 assert self.pinfile.normalize_pin_id(data) == result
-

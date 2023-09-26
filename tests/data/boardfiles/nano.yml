@@ -1,3 +1,4 @@
+---  # Testfile, This will not really work with a nano
 pin_type: arduino
 model: nanoatmega328
 baudrate: 115200
@@ -7,11 +8,6 @@ spi:
   mosi: 11
   miso: 12
   sck: 13
-onewire:
-  sda: 18
-  scl: 19
-led_pins: [13]
-
 
 pins:
   - physical_id: 2
@@ -28,8 +24,11 @@ pins:
     extra:
       - pwm
   - physical_id: 7
+    extra:
+      - sda1
   - physical_id: 8
-    mode: input_pullup
+    extra:
+      - scl1
   - physical_id: 9
     extra:
       - pwm
@@ -37,10 +36,12 @@ pins:
     extra:
       - pwm
       - ss
+      - sda20
   - physical_id: 11
     extra:
       - pwm
       - mosi
+      - scl20
   - physical_id: 12
     extra:
       - miso

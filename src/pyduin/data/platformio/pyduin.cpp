@@ -4,6 +4,7 @@
 #include <DHT.h>
 #include <string.h>
 #include <OneWire.h>
+#include <Wire.h>
 #include <DallasTemperature.h>
 #include <MemoryFree.h>
 

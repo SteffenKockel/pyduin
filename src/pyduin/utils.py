@@ -154,7 +154,9 @@ class BoardFile:
     _digital_pins = []
     _pwm_pins = []
     _physical_pin_ids = []
-    _led_pins = []
+    _leds = []
+    _spi_interfaces = {}
+    _i2c_interfaces = {}
     pins = OrderedDict()
     _boardfile = False
     _baudrate = False
@@ -183,8 +185,22 @@ class BoardFile:
                 if 'pwm' in extra:
                     self._pwm_pins.append(pin_id)
 
-                if list(filter(re.compile("led").match, extra)):
-                    self._led_pins.append(pin_id)
+                for match in list(filter(re.compile("led").match, extra)):
+                    self._leds.append({match: pin_id})
+                # spi
+                for match in list(filter(re.compile("sda|scl").match, extra)):
+                    num = re.findall(re.compile(r'\d+'), match) or ['0']
+                    # pylint: disable=expression-not-assigned
+                    self._i2c_interfaces.get(num[0]) or \
+                        self._i2c_interfaces.setdefault(num[0], {})
+                    self._i2c_interfaces[num[0]][match] = pin_id
+                # i2c
+                for match in list(filter(re.compile("ss|mosi|miso|sck").match, extra)):
+                    num = re.findall(re.compile(r'\d+'), match) or ['0']
+                    # pylint: disable=expression-not-assigned
+                    self._spi_interfaces.get(num[0]) or \
+                        self._spi_interfaces.setdefault(num[0], {})
+                    self._spi_interfaces[num[0]][match] = pin_id
 
 
         self._baudrate = self._boardfile['baudrate']
@@ -205,9 +221,19 @@ class BoardFile:
         return self._pwm_pins
 
     @property
-    def led_pins(self):
+    def leds(self):
         """ Return a List of pins that have an LED connected """
-        return self._led_pins
+        return self._leds
+
+    @property
+    def i2c_interfaces(self):
+        """ Return a list of i2c interfaces """
+        return self._i2c_interfaces
+
+    @property
+    def spi_interfaces(self):
+        """ Return a list of spi interfaces """
+        return self._spi_interfaces
 
     @property
     def num_analog_pins(self):
