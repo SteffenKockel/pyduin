@@ -35,6 +35,7 @@ In theory, any device supported by [platformio](https://platformio.org/) can wor
 
 * Arduino Uno
 * Arduino Nano
+* Sparkfun Pro Micro (ATMEGA32U4)
 
 ## Installation
 
@@ -103,7 +104,7 @@ To connect to a device `--tty` and `--board` arguments are required.
 
 ## Configuration file
 
-Pyduin creates a configuration file in `~/.pyduin.yaml` from a template. This file contains some generic settings and the buddy list.
+Pyduin creates a configuration file in `~/.pyduin.yml` from a template. This file contains some generic settings and the buddy list.
 
 ### The buddy list
 
@@ -123,6 +124,8 @@ The buddies can be used in the command line interface.
 ```
 pyduin -B uber pin 13 high
 ```
+
+#### Default buddy
 
 A `default_buddy` can be defined in the configuration file. This allows to target a device that is known and appropriately configured, without specifying the buddy option.
 
@@ -151,9 +154,17 @@ The pin mode can be set as follows
 ```
 pyduin -B uber pin 4 mode {input|ouput|input_pullup,pwm}
 ```
+A pin can also be read from. Resulting in `0` or `1` for digital pins and a value between `0` and `1024` (10bit) for analog pins. The analog pins also have aliases configured according to the Arduino conventions.
+
+```
+pyduin p A0 read
+```
+
+Pyduin determines the correct read command in the background depending on the pins nature.
+
 #### Get firmware version from the Arduino
 
-```h
+```
 pyduin --buddy uber firmware version [device|available]
 ```
 #### Get free memory from the Arduino
