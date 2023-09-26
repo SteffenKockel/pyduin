@@ -190,9 +190,9 @@ def template_firmware(arduino, config):
         "num_analog_pins": arduino.boardfile.num_analog_pins,
         "num_digital_pins": arduino.boardfile.num_digital_pins,
         "num_pwm_pins": arduino.boardfile.num_pwm_pins,
-        "pwm_pins": _tpl % ", ".join(arduino.boardfile.pwm_pins),
-        "analog_pins": _tpl % ", ".join(arduino.boardfile.analog_pins),
-        "digital_pins": _tpl % ", ".join(arduino.boardfile.digital_pins),
+        "pwm_pins": _tpl % ", ".join(map(str, arduino.boardfile.pwm_pins)),
+        "analog_pins": _tpl % ", ".join(map(str, arduino.boardfile.analog_pins)),
+        "digital_pins": _tpl % ", ".join(map(str, arduino.boardfile.digital_pins)),
         "extra_libs": '\n'.join(arduino.boardfile.extra_libs),
         "baudrate": arduino.baudrate
     }
