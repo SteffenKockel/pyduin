@@ -51,20 +51,20 @@ def get_basic_config(args):
     board = args.board or utils.get_buddy_cfg(cfg, args.buddy, 'board')
 
     if board:
-        cfg['pinfile'] = args.pinfile or utils.board_pinfile(board)
-        logger.debug("Using pinfile from: %s", cfg['pinfile'])
+        cfg['boardfile'] = args.boardfile or utils.board_boardfile(board)
+        logger.debug("Using boardfile from: %s", cfg['boardfile'])
         cfg['board'] = board
     else:
-        logger.error("Cannot determine pinfile: %s", board)
-        cfg['pinfile'] = False
+        logger.error("Cannot determine boardfile: %s", board)
+        cfg['boardfile'] = False
     return cfg
 
 def _get_arduino_config(args, config):
     """
-    Determine tty, baudrate, model and pinfile for the currently used arduino.
+    Determine tty, baudrate, model and boardfile for the currently used arduino.
     """
     arduino_config = {}
-    for opt in ('tty', 'baudrate', 'board', 'pinfile'):
+    for opt in ('tty', 'baudrate', 'board', 'boardfile'):
         _opt = getattr(args, opt)
         arduino_config[opt] = _opt
         if not _opt:
@@ -77,17 +77,17 @@ def _get_arduino_config(args, config):
     # Ensure defaults.
     arduino_config['tty'] = arduino_config.get('tty', False)
     arduino_config['baudrate'] = arduino_config.get('baudrate', False)
-    if not arduino_config.get('pinfile'):
-        pinfile = os.path.join(utils.pinfiledir, f'{arduino_config["board"]}.yml')
-        arduino_config['pinfile'] = pinfile
+    if not arduino_config.get('boardfile'):
+        boardfile = os.path.join(utils.boardfiledir, f'{arduino_config["board"]}.yml')
+        arduino_config['boardfile'] = boardfile
     logger.debug("device_config: %s", arduino_config)
     config['_arduino_'] = arduino_config
     model = config['_arduino_']['board']
     check_board_support(model, config)
-    logger.debug("Using pinfile: %s", arduino_config['pinfile'])
+    logger.debug("Using boardfile: %s", arduino_config['boardfile'])
 
-    if not os.path.isfile(arduino_config['pinfile']):
-        errmsg = f'Cannot find pinfile {arduino_config["pinfile"]}'
+    if not os.path.isfile(arduino_config['boardfile']):
+        errmsg = f'Cannot find boardfile {arduino_config["boardfile"]}'
         raise DeviceConfigError(errmsg)
     return config
 
@@ -151,7 +151,7 @@ def get_arduino(config):
     #     socat.start()
 
     arduino = Arduino(tty=aconfig['tty'], baudrate=aconfig['baudrate'],
-                  pinfile=aconfig['pinfile'], board=aconfig['board'],
+                  boardfile=aconfig['boardfile'], board=aconfig['board'],
                   wait=True, socat=config['serial']['use_socat'])
     return arduino
 
@@ -187,13 +187,13 @@ def template_firmware(arduino, config):
     """ Render firmware from template """
     _tpl = '{%s}'
     fwenv = {
-        "num_analog_pins": arduino.pinfile.num_analog_pins,
-        "num_digital_pins": arduino.pinfile.num_digital_pins,
-        "num_pwm_pins": arduino.pinfile.num_pwm_pins,
-        "pwm_pins": _tpl % ", ".join(arduino.pinfile.pwm_pins),
-        "analog_pins": _tpl % ", ".join(arduino.pinfile.analog_pins),
-        "digital_pins": _tpl % ", ".join(arduino.pinfile.digital_pins),
-        "extra_libs": '\n'.join(arduino.pinfile.extra_libs),
+        "num_analog_pins": arduino.boardfile.num_analog_pins,
+        "num_digital_pins": arduino.boardfile.num_digital_pins,
+        "num_pwm_pins": arduino.boardfile.num_pwm_pins,
+        "pwm_pins": _tpl % ", ".join(arduino.boardfile.pwm_pins),
+        "analog_pins": _tpl % ", ".join(arduino.boardfile.analog_pins),
+        "digital_pins": _tpl % ", ".join(arduino.boardfile.digital_pins),
+        "extra_libs": '\n'.join(arduino.boardfile.extra_libs),
         "baudrate": arduino.baudrate
     }
     workdir = os.path.expanduser(config["workdir"])
@@ -229,8 +229,8 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
     paa('-I', '--platformio-ini', default=False, type=argparse.FileType('r'),
         help="Specify an alternate platformio.ini")
     paa('-l', '--log-level', default=False)
-    paa('-p', '--pinfile', default=False,
-        help="Pinfile to use (default: <package_install_dir>/pinfiles/<board>.yml")
+    paa('-p', '--boardfile', default=False,
+        help="Pinfile to use (default: <package_install_dir>/boardfiles/<board>.yml")
     paa('-s', '--baudrate', type=int, default=False)
     paa('-t', '--tty', default=False, help="Arduino tty (default: '/dev/ttyUSB0')")
     paa('-w', '--workdir', type=str, default=False,
@@ -284,7 +284,7 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
     #if getattr(args, 'fwcmd', False) not in ('flash', 'f'):
     arduino = get_arduino(config)
     prepare_buildenv(arduino, config, args)
-    #args.pin = arduino.pinfile.normalize_pin_id(args.pin)
+    #args.pin = arduino.boardfile.normalize_pin_id(args.pin)
 
 
     if args.cmd in ('versions', 'v'):

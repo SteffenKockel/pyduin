@@ -3,13 +3,13 @@
 
 import pytest
 from pyduin.utils import PinNotFoundError
-from pyduin import PinFile
+from pyduin import BoardFile
 
 PINFILE = 'tests/data/boardfiles/nano.yml'
 
 # pylint: disable=missing-docstring
-class TestArduinoPinFile:
-    pinfile = PinFile(PINFILE)
+class TestArduinoBoardFile:
+    pinfile = BoardFile(PINFILE)
 
     def test_digital_pins(self):
         expected = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
@@ -22,6 +22,10 @@ class TestArduinoPinFile:
     def test_pwm_pins(self):
         expected = [3, 5, 6, 9, 10, 11]
         assert self.pinfile.pwm_pins == expected
+
+    def test_led_pins(self):
+        expected = [3, 5, 13]
+        assert self.pinfile.led_pins == expected
 
     def test_all_physical_pins(self):
         expected = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
@@ -37,3 +41,4 @@ class TestArduinoPinFile:
         for data in dataset:
             with pytest.raises(PinNotFoundError) as result:
                 assert self.pinfile.normalize_pin_id(data) == result
+

@@ -12,7 +12,7 @@ import logging
 import serial
 
 from pyduin import _utils as utils
-from pyduin import PinFile, DeviceConfigError, SocatProxy
+from pyduin import BoardFile, DeviceConfigError, SocatProxy
 from pyduin.pin import ArduinoPin
 
 IMMEDIATE_RESPONSE = True
@@ -29,13 +29,13 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
     Busses = False
 
     # pylint: disable=too-many-arguments
-    def __init__(self,  board=False, tty=False, baudrate=115200, pinfile=False,
+    def __init__(self,  board=False, tty=False, baudrate=115200, boardfile=False,
                  serial_timeout=3, wait=False, socat=False, log_level=logging.INFO):
         self.board = board
         self.tty = tty
         self.baudrate = baudrate
-        self._pinfile = pinfile or utils.board_pinfile(board)
-        self.pinfile = False
+        self._boardfile = boardfile or utils.board_boardfile(board)
+        self.boardfile = False
         self.ready = False
         self.wait = wait
         self.serial_timeout = serial_timeout
@@ -43,13 +43,13 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
         self.socat = socat
         self.logger = utils.logger()
         self.logger.setLevel(utils.loglevel_int(log_level))
-        self.pinfile = PinFile(self._pinfile)
+        self.boardfile = BoardFile(self._boardfile)
 
-        if not os.path.isfile(self._pinfile):
-            raise DeviceConfigError(f'Cannot open pinfile: {self._pinfile}')
+        if not os.path.isfile(self._boardfile):
+            raise DeviceConfigError(f'Cannot open boardfile: {self._boardfile}')
 
         if not self.baudrate:
-            self.baudrate = self.pinfile.baudrate
+            self.baudrate = self.boardfile.baudrate
 
         if self.socat:
             self.socat = SocatProxy(self.tty, self.baudrate, log_level=log_level)
@@ -60,7 +60,7 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
     def open_serial_connection(self):
         """
             Open serial connection to the arduino and setup pins
-            according to pinfile.
+            according to boardfile.
         """
         try:
             tty = self.socat.proxy_tty if self.socat else self.tty
@@ -76,14 +76,14 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
 
     def setup_pins(self):
         """
-            Setup pins according to pinfile.
+            Setup pins according to boardfile.
         """
-        for pin in self.pinfile.pins:
+        for pin in self.boardfile.pins:
             self.Pins[pin['physical_id']] = ArduinoPin(self, **pin)
 
     def get_pin(self, pin):
         """ Return the pin object of a given pin (or it's alias) """
-        pin = self.pinfile.normalize_pin_id(pin)
+        pin = self.boardfile.normalize_pin_id(pin)
         return self.Pins[pin]
 
     def close_serial_connection(self):

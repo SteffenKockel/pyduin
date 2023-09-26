@@ -59,7 +59,7 @@ class PyduinUtils:
         return os.path.dirname(__file__)
 
     @property
-    def pinfiledir(self):
+    def boardfiledir(self):
         """ Return the directory within the package, where the boardfiles resied """
         return os.path.join(self.package_root, 'data', 'boardfiles')
 
@@ -94,9 +94,9 @@ class PyduinUtils:
         """ Return the pull path to default platformio.ini """
         return os.path.join(self.firmwaredir, 'platformio.ini')
 
-    def board_pinfile(self, board):
-        """ Return the full path to a specific pinfile in the package """
-        return os.path.join(self.pinfiledir, f'{board}.yml')
+    def board_boardfile(self, board):
+        """ Return the full path to a specific boardfile in the package """
+        return os.path.join(self.boardfiledir, f'{board}.yml')
 
     @staticmethod
     def ensure_user_config_file(location):
@@ -147,39 +147,47 @@ class PyduinUtils:
 
 
 
-class PinFile:
-    """ Represents a pinfile and provides functions mostly required for templating
+class BoardFile:
+    """ Represents a boardfile and provides functions mostly required for templating
     the firmware for different boards """
     _analog_pins = []
     _digital_pins = []
     _pwm_pins = []
     _physical_pin_ids = []
+    _led_pins = []
     pins = OrderedDict()
-    _pinfile = False
+    _boardfile = False
     _baudrate = False
 
-    def __init__(self, pinfile):
-        if not os.path.isfile(pinfile):
-            raise DeviceConfigError(f'Cannot open pinfile: {pinfile}')
+    def __init__(self, boardfile):
+        if not os.path.isfile(boardfile):
+            raise DeviceConfigError(f'Cannot open boardfile: {boardfile}')
 
-        with open(pinfile, 'r', encoding='utf-8') as pfile:
-            self._pinfile = yaml.load(pfile, Loader=yaml.Loader)
+        with open(boardfile, 'r', encoding='utf-8') as pfile:
+            self._boardfile = yaml.load(pfile, Loader=yaml.Loader)
 
-        #print(self._pinfile['pins'])
-        self.pins = sorted(list(self._pinfile['pins']),
+        self.pins = sorted(list(self._boardfile['pins']),
                        key=lambda x: int(x['physical_id']))
 
-        for pinconfig in self.pins:  # pylint: disable=unused-variable
+        for pinconfig in self.pins:
             pin_id = pinconfig['physical_id']
             self._physical_pin_ids.append(pin_id)
-            if pinconfig.get('pin_type') == 'analog':
-                self._analog_pins.append(pin_id)
-            elif pinconfig.get('pin_type', 'digital') == 'digital':
-                self._digital_pins.append(pin_id)
-            if pinconfig.get('pwm_capable'):
-                self._pwm_pins.append(pin_id)
+            extra = pinconfig.get('extra', [])
 
-        self._baudrate = self._pinfile['baudrate']
+            if 'analog' in extra:
+                self._analog_pins.append(pin_id)
+            else:
+                self._digital_pins.append(pin_id)
+
+            if extra:
+                if 'pwm' in extra:
+                    self._pwm_pins.append(pin_id)
+
+                if list(filter(re.compile("led").match, extra)):
+                    self._led_pins.append(pin_id)
+
+
+        self._baudrate = self._boardfile['baudrate']
 
     @property
     def analog_pins(self):
@@ -195,6 +203,11 @@ class PinFile:
     def pwm_pins(self):
         """ return a list of pwm-capable pin id'w """
         return self._pwm_pins
+
+    @property
+    def led_pins(self):
+        """ Return a List of pins that have an LED connected """
+        return self._led_pins
 
     @property
     def num_analog_pins(self):
@@ -219,7 +232,7 @@ class PinFile:
     @property
     def extra_libs(self):
         """ Return a list of extra libraries to include in the firmware """
-        fwcfg = self._pinfile.get('firmware', False )
+        fwcfg = self._boardfile.get('firmware', False )
         if fwcfg:
             extra_libs = fwcfg.get('extra_libs', False)
             if extra_libs:

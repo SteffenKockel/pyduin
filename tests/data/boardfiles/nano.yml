@@ -16,54 +16,73 @@ led_pins: [13]
 pins:
   - physical_id: 2
   - physical_id: 3
-    mode: output
-    pwm_capable: True
+    extra:
+      - pwm
+      - led1
   - physical_id: 4
-    mode: output
   - physical_id: 5
-    pwm_capable: True
+    extra:
+      - pwm
+      - led10
   - physical_id: 6
-    pwm_capable: True
+    extra:
+      - pwm
   - physical_id: 7
   - physical_id: 8
+    mode: input_pullup
   - physical_id: 9
-    pwm_capable: True
+    extra:
+      - pwm
   - physical_id: 10
-    pwm_capable: True
+    extra:
+      - pwm
+      - ss
   - physical_id: 11
-    pwm_capable: True
+    extra:
+      - pwm
+      - mosi
   - physical_id: 12
+    extra:
+      - miso
   - physical_id: 13
     alias: D13
-    mode: output
+    extra:
+      - led
+      - sck
   - physical_id: 14
-    mode: input
-    pin_type: analog
+    extra:
+      - analog
     alias: A0
   - physical_id: 15
-    mode: input
-    pin_type: analog
+    extra:
+      - analog
     alias: A1
   - physical_id: 16
     mode: input
-    pin_type: analog
+    extra:
+      - analog
     alias: A2
   - physical_id: 17
-    mode: input
-    pin_type: analog
+    extra:
+      - analog
     alias: A3
   - physical_id: 18
-    mode: input
-    pin_type: analog
+    extra:
+      - analog
+      - sda
     alias: A4
   - physical_id: 19
-    pin_type: analog
+    extra:
+      - analog
+      - scl
     alias: A5
   - physical_id: 20
-    pin_type: analog
+    extra:
+      - analog
     alias: A6
     mode: output
   - physical_id: 21
-    pin_type: analog
+    extra:
+      - analog
     mode: input_pullup
-    Alias: A7
+    alias: A7
