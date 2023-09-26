@@ -4,12 +4,6 @@ model: promicro16
 baudrate: 115200
 
 pins:
-  - physical_id: 0
-    extra:
-      - tx
-  - physical_id: 1
-    extra:
-      - rx
   - physical_id: 2
     extra:
       - sda
