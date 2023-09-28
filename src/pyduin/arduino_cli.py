@@ -163,7 +163,7 @@ def prepare_buildenv(arduino, config, args):
                         config['_arduino_']['tty'],
                         log_level=args.log_level,
                         platformio_ini=config['platformio_ini'])
-    buildenv.create()
+    buildenv.create(force_recreate=args.no_cache)
     setattr(arduino, 'buildenv', buildenv)
 
 
@@ -199,6 +199,7 @@ def template_firmware(arduino, config):
     workdir = os.path.expanduser(config["workdir"])
     firmware = os.path.join(workdir, config['_arduino_']['board'], 'src', 'pyduin.cpp')
     logger.debug("Using firmware template: %s", firmware)
+
     with open(firmware, 'r', encoding='utf-8') as template:
         tpl = Template(template.read())
         tpl = tpl.render(fwenv)
@@ -232,7 +233,7 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
     paa('-p', '--boardfile', default=False,
         help="Pinfile to use (default: <package_install_dir>/boardfiles/<board>.yml")
     paa('-s', '--baudrate', type=int, default=False)
-    paa('-t', '--tty', default=False, help="Arduino tty (default: '/dev/ttyUSB0')")
+    paa('-t', '--tty', default=False, help="Device tty. Consult `platformio device list`")
     paa('-w', '--workdir', type=str, default=False,
         help="Alternate workdir path (default: ~/.pyduin)")
 
@@ -244,7 +245,9 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
     fwsubparsers = firmware_parser.add_subparsers(help='Available sub-commands', dest="fwcmd")
     firmwareversion_parser = fwsubparsers.add_parser('version', aliases=['v'],
                                                      help="List firmware versions")
-    fwsubparsers.add_parser('flash', aliases=['f'], help="Flash firmware to device")
+    flash_subparser = fwsubparsers.add_parser('flash', aliases=['f'],
+                                               help="Flash firmware to device")
+    flash_subparser.add_argument('-n', '--no-cache', action="store_true", default=False)
     fwsubparsers.add_parser("lint", help="Lint Firmware in <workdir>", aliases=['l'])
     fwv_subparsers = firmwareversion_parser.add_subparsers(help="Available sub-commands",
                                                            dest='fwscmd')

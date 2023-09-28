@@ -4,7 +4,7 @@ import logging
 import re
 import subprocess
 import time
-from shutil import copyfile, which
+from shutil import copyfile, which, rmtree
 from collections import OrderedDict
 from termcolor import colored
 import yaml
@@ -374,8 +374,10 @@ class BuildEnv:
         self.project_dir = os.path.join(workdir, board)
         self.logger.setLevel(self.utils.loglevel_int(log_level))
 
-    def create(self):
+    def create(self, force_recreate=False):
         """ Create directories and copy over files """
+        if force_recreate:
+            rmtree(self.project_dir)
         os.makedirs(self.project_dir, exist_ok=True)
         self.logger.debug("Creating workdir in %s if not exists", self.project_dir)
         platformio_ini_target = os.path.join(self.workdir, 'platformio.ini')
