@@ -67,17 +67,16 @@ from pyduin import arduino
 from pyduin import _utils as utils
 
 board = 'nanoatmega328'
-pinfile = utils.board_pinfile(board)
+boardfile = utils.board_boardfile(board)
 
 Arduino = arduino.Arduino(board=board,
                           tty='/dev/ttyUSB0',
-                          pinfile=pinfile,
-                          baudrate=115200,
+                          boardfile=boardfile,
                           wait=True)
-Arduino.open_serial_connection()
 print(Arduino.firmware_version)
-Arduino.Pins[13].set_mode('OUTPUT')
-Arduino.Pins[13].high()
+pin = Arduino.get_pin(13)
+pin.set_mode('OUTPUT')
+pin.high()
 print(Arduino.free_memory)
 ```
 
