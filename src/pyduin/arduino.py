@@ -29,7 +29,7 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
     Busses = False
 
     # pylint: disable=too-many-arguments
-    def __init__(self,  board=False, tty=False, baudrate=115200, boardfile=False,
+    def __init__(self,  board=False, tty=False, baudrate=False, boardfile=False,
                  serial_timeout=3, wait=False, socat=False, log_level=logging.INFO):
         self.board = board
         self.tty = tty
