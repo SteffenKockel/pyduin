@@ -8,6 +8,7 @@ from shutil import copyfile, which, rmtree
 from collections import OrderedDict
 from termcolor import colored
 import yaml
+import copy
 
 #from .arduino import DeviceConfigError
 
@@ -172,11 +173,12 @@ class BoardFile:
                        key=lambda x: int(x['physical_id']))
 
         for pinconfig in self.pins:
+
             pin_id = pinconfig['physical_id']
             self._physical_pin_ids.append(pin_id)
             extra = pinconfig.get('extra', [])
 
-            if 'analog' in extra:
+            if 'analog' in extra and not pin_id in self._analog_pins:
                 self._analog_pins.append(pin_id)
             else:
                 self._digital_pins.append(pin_id)
@@ -206,7 +208,7 @@ class BoardFile:
         self._baudrate = self._boardfile['baudrate']
 
     @property
-    def analog_pins(self):
+    def analog_pins(self) -> list:
         """ Return a list of analog pin id's """
         return self._analog_pins
 
@@ -216,27 +218,27 @@ class BoardFile:
         return self._digital_pins
 
     @property
-    def pwm_pins(self):
+    def pwm_pins(self) -> list:
         """ return a list of pwm-capable pin id'w """
         return self._pwm_pins
 
     @property
-    def leds(self):
+    def leds(self) -> list:
         """ Return a List of pins that have an LED connected """
         return self._leds
 
     @property
-    def i2c_interfaces(self):
+    def i2c_interfaces(self) -> list:
         """ Return a list of i2c interfaces """
         return self._i2c_interfaces
 
     @property
-    def spi_interfaces(self):
+    def spi_interfaces(self) -> list:
         """ Return a list of spi interfaces """
         return self._spi_interfaces
 
     @property
-    def num_analog_pins(self):
+    def num_analog_pins(self) -> int:
         """ Return the number of analog pins for the given board """
         return len(self._analog_pins)
 
@@ -246,9 +248,14 @@ class BoardFile:
         return len(self._digital_pins)
 
     @property
-    def num_pwm_pins(self):
+    def num_pwm_pins(self) -> int:
         """ Return the number of pwm-capable pins """
         return len(self._pwm_pins)
+
+    @property
+    def num_physical_pins(self) -> int:
+        """ Return the number of all physical pins """
+        return len(self._physical_pin_ids)
 
     @property
     def physical_pin_ids(self):
@@ -298,9 +305,6 @@ class BoardFile:
                         x.get('alias')), self.pins))[0]
         except IndexError:
             return {}
-
-
-
 
 class AttrDict(dict):
     """ Helper class to ease the handling of ini files with configparser. """
