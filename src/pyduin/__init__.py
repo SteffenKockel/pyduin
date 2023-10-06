@@ -6,4 +6,4 @@ from pyduin.utils import PyduinUtils, AttrDict, BoardFile, DeviceConfigError, So
 _utils = PyduinUtils()
 
 # pylint: disable=unused-variable
-VERSION = "0.6.3"
+VERSION = "0.6.4"

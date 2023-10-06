@@ -1,5 +1,15 @@
 = pyduin changelog
 
+== 0.6.4
+
+* lots of tests added
+* Pinfiles are Boardfiles now and the syntax changed again. 
+Since everything is tested, no regressions are expected
+* Boards can be identified by lighting up a builtin LED 
+without the need to know, which pin it corresponds to on
+the given board.
+* Board support for sparkfun_promicro16 added
+
 == 0.6.3
 
 * Add test case for pin file
