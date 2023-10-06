@@ -8,7 +8,6 @@ from shutil import copyfile, which, rmtree
 from collections import OrderedDict
 from termcolor import colored
 import yaml
-import copy
 
 #from .arduino import DeviceConfigError
 
