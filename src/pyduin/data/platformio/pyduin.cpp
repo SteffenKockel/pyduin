@@ -103,12 +103,12 @@ void pwm(int p, int v) {
   for (int j = 0; j < num_pwm_Pins; j++) {
     if (pwmPins[j] == p) {
       analogWrite(p, v);
-      Serial.println(v);
+      // Serial.println(v);
     }
   }
 }
 
-void analog_actor_sensor(char c, char t, String tmp, int p, int v) {
+void analog_actor_sensor(char c, char t,  int p, int v) {
   switch (c) {
     // analog actor/sensor
     case 'A':
@@ -122,11 +122,11 @@ void analog_actor_sensor(char c, char t, String tmp, int p, int v) {
           Serial.println(v);
           break;
       }
-        break;
+      break;
       // digital actor/sensor
     case 'D':
-    // digital actor/sensor READ
-      switch (c) {
+      // digital actor/sensor READ
+      switch (t) {
         case 'R':
           Serial.println(digitalRead(p));
           break;
@@ -245,12 +245,13 @@ void loop() {
             Serial.print("version");
             Serial.print("%");
             Serial.println(firmware_version);
+            break;
         }
         break;
       // handle native analog and digital pins
       case 'A':
       case 'D':
-        analog_actor_sensor(c, t, tmp, p, v);
+        analog_actor_sensor(c, t, p, v);
         break;
       // handle setPinMode
       case 'M':
