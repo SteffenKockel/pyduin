@@ -53,8 +53,8 @@ int v;
 // input
 int i;
 // temp
-// int pwmPins[{{ num_pwm_pins }}] = {{ pwm_pins }};
-// int num_pwm_Pins = {{ num_pwm_pins }};
+int pwmPins[{{ num_pwm_pins }}] = {{ pwm_pins }};
+int num_pwm_Pins = {{ num_pwm_pins }};
 // int analogPins[{{ num_analog_pins }}] = {{ analog_pins }};
 // int num_analog_pins = {{ num_analog_pins }};
 // int digitalPins[{{ num_digital_pins }}] = {{ digital_pins }};
