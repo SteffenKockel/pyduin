@@ -3,8 +3,8 @@
 
 
 # pin modes
-# 0 = output
-# 1 = input
+# 0 = input
+# 1 = output
 # 2 = input_pullup
 
 
@@ -20,9 +20,9 @@ def test_digital_pin(device_fixture):
 
 def test_set_pin_mode_output(device_fixture):
     pin = device_fixture.Pins[13]
-    device_fixture.Connection.response = '0%13%0'
-    assert pin.set_mode('output') == '0%13%0'
-    assert pin.get_mode() == '0%13%0'
+    device_fixture.Connection.response = '0%13%1'
+    assert pin.set_mode('output') == '0%13%1'
+    assert pin.get_mode() == '0%13%1'
 
 def test_set_pin_mode_pwm(device_fixture):
     pin = device_fixture.Pins[5]
@@ -32,9 +32,9 @@ def test_set_pin_mode_pwm(device_fixture):
 
 def test_set_pin_mode_input(device_fixture):
     pin = device_fixture.Pins[12]
-    device_fixture.Connection.response = '0%12%1'
-    assert pin.set_mode('input') == '0%12%1'
-    assert pin.get_mode() == '0%12%1'
+    device_fixture.Connection.response = '0%12%0'
+    assert pin.set_mode('input') == '0%12%0'
+    assert pin.get_mode() == '0%12%0'
 
 def test_set_pin_mode_input_pullup(device_fixture):
     pin = device_fixture.Pins[8]
