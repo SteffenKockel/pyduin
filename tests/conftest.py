@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 #pytest_plugins = ['device']
 import pytest
+import serial
+
 from pyduin.arduino import Arduino as Device
 
 class SerialMock():
@@ -27,7 +29,11 @@ class SerialMock():
         self._called += 1
         return self.response.encode('utf-8')
 
-
+# pylint: disable=R0903,W0613
+class FailingSerialMock():
+    """ Mocks a failing connection """
+    def __init__(self, tty, baudrate, timeout=0):
+        raise serial.SerialException
 
 @pytest.fixture(scope="function")
 def device_fixture(monkeypatch):
@@ -40,3 +46,9 @@ def device_fixture(monkeypatch):
 def device_fixture_baudrate_override(monkeypatch):
     monkeypatch.setattr('serial.Serial', SerialMock)
     yield Device('uno', tty="/mock/tty", baudrate=1234567, wait=True)
+
+
+@pytest.fixture(scope="function")
+def device_fixture_serial_failing(monkeypatch):
+    monkeypatch.setattr('serial.Serial', FailingSerialMock)
+    yield Device('uno', tty='/mock/tty', baudrate=1234567, wait=False)
