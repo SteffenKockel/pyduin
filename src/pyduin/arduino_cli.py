@@ -163,7 +163,7 @@ def prepare_buildenv(arduino, config, args):
                         config['_arduino_']['tty'],
                         log_level=args.log_level,
                         platformio_ini=config['platformio_ini'])
-    buildenv.create(force_recreate=args.no_cache)
+    buildenv.create(force_recreate=getattr(args, 'no_cache', False))
     setattr(arduino, 'buildenv', buildenv)
 
 
