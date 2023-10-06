@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+ #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
 #  pin.py
@@ -93,11 +93,12 @@ class ArduinoPin:  # pylint: disable=too-many-instance-attributes
     def __init__(self, arduino, **pin_config):
         self.arduino = weakref.proxy(arduino)  # pylint: disable=invalid-name
         self.pin_id = pin_config['physical_id']
-        self.pin_type = pin_config.get('pin_type', 'digital')
-        self.pwm_capable = pin_config.get('pwm_capable', False)
-        self.pwm_enabled = pin_config.get('pwm_enabled', False)
+        self.pin_type = 'analog' if 'analog' in pin_config.get('extra', [])  else 'digital'
+        #self.pwm_capable = pin_config.get('pwm_capable', False)
+        #self.pwm_enabled = pin_config.get('pwm_enabled', False)
         self.pin_mode = pin_config.get('pin_mode', 'input_pullup')
         self.Mode = Mode(self, self.pin_mode)  # pylint: disable=invalid-name
+        self.message = ""
 
     def set_mode(self, mode):
         """
@@ -115,27 +116,27 @@ class ArduinoPin:  # pylint: disable=too-many-instance-attributes
         """
             Set this pin to HIGH
         """
-        message = f'<AD{self.pin_id:02d}001>'
-        return self.arduino.send(message)
+        self.message = f'<DW{self.pin_id:02d}001>'
+        return self.arduino.send(self.message)
 
     def low(self):
         """
             Set this pin to LOW
         """
-        message = f'<AD{self.pin_id:02d}000>'
-        return self.arduino.send(message)
+        self.message = f'<DW{self.pin_id:02d}000>'
+        return self.arduino.send(self.message)
 
     def read(self):
         """
             Read-out a pin. 
         """
-        message = f'<a{self.pin_type[0].upper()}{self.pin_id:02d}000>'
-        return self.arduino.send(message)
+        self.message = f'<{self.pin_type[0].upper()}R{self.pin_id:02d}000>'
+        return self.arduino.send(self.message)
 
     def pwm(self, value=0):
         """
             Set pin to a specific pwm value
         """
         # @TODO, check, if the pin is indeed a pwm capable pin
-        message = f'<AA{self.pin_id:02d}{value:03d}>'
-        return self.arduino.send(message)
+        self.message = f'<AW{self.pin_id:02d}{value:03d}>'
+        return self.arduino.send(self.message)

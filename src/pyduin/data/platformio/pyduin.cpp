@@ -12,22 +12,16 @@
 // command
 // String s;
 
+
 // command (byte 1)
-// a - readActor
-// A - writeActor
-// s - readSensor
-// w - readOneWire
-// W - writeOneWire
-// c - readI2C
-// C - writeI2C
-// R - Reset device
-// m - get pin mode
+// A | D - native pins
 // M - set pin mode
 // z - system commands
 //
 // Type (byte 2)
-// A - Analog pin
-// D - Digital Pin
+// R - Read
+// W - Write
+//
 // z - memory usage
 // v - version
 // Pin (byte 3,4)
@@ -45,7 +39,7 @@ DallasTemperature *myDallasTemperature = NULL;
 DeviceAddress OneWireAddr;
 
 // firmware version
-String firmware_version = "0.6.6";
+String firmware_version = "0.7.0";
 // arduino id
 int arduino_id = 0;
 // command
@@ -59,12 +53,15 @@ int v;
 // input
 int i;
 // temp
-int pwmPins[{{ num_pwm_pins }}] = {{ pwm_pins }};
-int num_pwm_Pins = {{ num_pwm_pins }};
-int analogPins[{{ num_analog_pins }}] = {{ analog_pins }};
-int num_analog_pins = {{ num_analog_pins }};
-int digitalPins[{{ num_digital_pins }}] = {{ digital_pins }};
-int num_digital_pins = {{ num_digital_pins }};
+// int pwmPins[{{ num_pwm_pins }}] = {{ pwm_pins }};
+// int num_pwm_Pins = {{ num_pwm_pins }};
+// int analogPins[{{ num_analog_pins }}] = {{ analog_pins }};
+// int num_analog_pins = {{ num_analog_pins }};
+// int digitalPins[{{ num_digital_pins }}] = {{ digital_pins }};
+// int num_digital_pins = {{ num_digital_pins }};
+// int physical_pin_ids[{{ num_physical_pins }}] = {{ physical_pins }};
+// int min_pin = {{ min_pin }}
+// int max_pin = {{ max_pin }}
 String tmp;
 String pin;
 String val;
@@ -74,7 +71,8 @@ String val;
 
 
 int getPinMode(uint8_t pin) {
-  if (pin >= num_digital_pins) return (-1);
+  // if (pin >= physical_pin_ids) return (-1);
+  // if (std::find(std::begin()))
 
   uint8_t bit = digitalPinToBitMask(pin);
   uint8_t port = digitalPinToPort(pin);
@@ -111,29 +109,28 @@ void pwm(int p, int v) {
 }
 
 void analog_actor_sensor(char c, char t, String tmp, int p, int v) {
-  switch (t) {
+  switch (c) {
     // analog actor/sensor
     case 'A':
-      switch (c) {
-        case 'a':
-        case 's':
+      switch (t) {
+        case 'R':
           // analog sensor/actor READ
           Serial.println(analogRead(p));
           break;
-        case 'A':
+        case 'W':
           pwm(p, v);
+          Serial.println(v);
           break;
       }
-      break;
-    // digital actor/sensor
+        break;
+      // digital actor/sensor
     case 'D':
     // digital actor/sensor READ
       switch (c) {
-        case 'a':
-        case 's':
+        case 'R':
           Serial.println(digitalRead(p));
           break;
-        case 'A':
+        case 'W':
           digitalWrite(p, v);
           // Serial.print(p);
           // Serial.println(v);
@@ -184,30 +181,27 @@ void dhtsensor(int p, int v) {
 }
 
 
-void pin_mode(char c, char t, int p) {
-  switch (c) {
-    // case 'm': //?
-    // Serial.println(getPinMode(p));
-    // break;
-    case 'M':
-    case 'm':
-      switch (t) {
-        // input
-        case 'I':
-          pinMode(p, INPUT);
-          break;
-        // pullup
-        case 'P':
-          pinMode(p, INPUT_PULLUP);
-          break;
-        // output
-        case 'O':
-          pinMode(p, OUTPUT);
-          break;
-    }
+void pin_mode(char t, int p) {
+  switch (t) {
+    // input
+    case 'I':
+      pinMode(p, INPUT);
+      Serial.println(INPUT);
+      break;
+    // pullup
+    case 'P':
+      pinMode(p, INPUT_PULLUP);
+      Serial.println(INPUT_PULLUP);
+      break;
+    // output
+    case 'O':
+      pinMode(p, OUTPUT);
+      Serial.println(OUTPUT);
+      break;
+    case 'R':
+      Serial.println(getPinMode(p));
+      break;
   }
-  // reply actual state of this pin
-  Serial.println(getPinMode(p));
 }
 
 
@@ -255,14 +249,12 @@ void loop() {
         break;
       // handle native analog and digital pins
       case 'A':
-      case 'a':
-      case 's':
+      case 'D':
         analog_actor_sensor(c, t, tmp, p, v);
         break;
       // handle setPinMode
-      case 'm':
       case 'M':
-        pin_mode(c, t, p);
+        pin_mode(t, p);
         break;
       case 'w':
       case 'W':
@@ -270,8 +262,8 @@ void loop() {
         // DallasTemperature on OneWire
         onewire(p, v);
         break;
-      case 'D':
-        // handle dht sensors
+      case 'S':
+        // handle sensors
         dhtsensor(p, v);
         break;
     }  // main command switch

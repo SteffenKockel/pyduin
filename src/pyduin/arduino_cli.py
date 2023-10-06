@@ -193,6 +193,8 @@ def template_firmware(arduino, config):
         "pwm_pins": _tpl % ", ".join(map(str, arduino.boardfile.pwm_pins)),
         "analog_pins": _tpl % ", ".join(map(str, arduino.boardfile.analog_pins)),
         "digital_pins": _tpl % ", ".join(map(str, arduino.boardfile.digital_pins)),
+        "physical_pins": _tpl % ", ".join(map(str, arduino.boardfile.physical_pin_ids)),
+        "num_physical_pins":  arduino.boardfile.num_physical_pins,
         "extra_libs": '\n'.join(arduino.boardfile.extra_libs),
         "baudrate": arduino.baudrate
     }
