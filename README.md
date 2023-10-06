@@ -160,16 +160,23 @@ A pin can also be read from. Resulting in `0` or `1` for digital pins and a valu
 pyduin p A0 read
 ```
 
+#### Control the builtin leds
+
+The builtin leds defined in the pinfile can be addressed by their corresponding names
+
+```bash
+pyduin -B foo led1 {on|off}
+```
 Pyduin determines the correct read command in the background depending on the pins nature.
 
 #### Get firmware version from the Arduino
 
-```
+```bash
 pyduin --buddy uber firmware version [device|available]
 ```
 #### Get free memory from the Arduino
 
-```
+```bash
 pyduin --buddy uber free
 ```
 

@@ -35,7 +35,7 @@ pins:
   - physical_id: 13
     alias: D13
     extra:
-      - led
+      - led1
       - sck
   - physical_id: 14
     extra:

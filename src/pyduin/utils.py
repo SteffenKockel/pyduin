@@ -36,9 +36,15 @@ class DeviceConfigError(BaseException):
     """
 
 class PinNotFoundError(BaseException):
-    """ Error class to throw, when a pin cannot be found"""
+    """ Error class to throw, when a pin cannot be found """
     def __init__(self, pin, *args, **kwargs):
-        msg=f'Pin {pin} cannot be resolved to a pin on the device.'
+        msg = f'Pin {pin} cannot be resolved to a pin on the device.'
+        super().__init__(msg, *args, **kwargs)
+
+class LEDNotFoundError(BaseException):
+    """ Error class to be thrown when an led cannot be resolved to a pin """
+    def __init__(self, led, *args, **kwargs):
+        msg = f'LED {led} cannot be resolved to a pin on the device.'
         super().__init__(msg, *args, **kwargs)
 
 class PyduinUtils:
@@ -186,7 +192,7 @@ class BoardFile:
                 if 'pwm' in extra:
                     self._pwm_pins.append(pin_id)
 
-                for match in list(filter(re.compile("led").match, extra)):
+                for match in list(filter(re.compile("led[0-9]+").match, extra)):
                     self._leds.append({match: pin_id})
                 # spi
                 for match in list(filter(re.compile("sda|scl").match, extra)):
@@ -275,6 +281,14 @@ class BoardFile:
     def baudrate(self):
         """ Return the baudrate used to connect to this board """
         return self._baudrate
+
+    def led_to_pin(self, led_id):
+        """ Resolve led[0-9] back to an actual pin id """
+        led = f'led{led_id}'
+        pin = list(filter(lambda x: led in x ,self._leds))
+        if pin:
+            return pin[0][led]
+        raise LEDNotFoundError(led)
 
     def normalize_pin_id(self, pin_id):
         """ Return the physical_id of a pin. This function is used to

@@ -23,8 +23,12 @@ def test_pwm_pins(boardfile_fixture):
     assert boardfile_fixture.pwm_pins == expected
 
 def test_led_pins(boardfile_fixture):
-    expected = [{'led1': 3},{'led10': 5},{'led': 13}]
+    expected = [{'led1': 3}, {'led10': 5}]
     assert boardfile_fixture.leds == expected
+
+def test_led_to_pin(boardfile_fixture):
+    assert boardfile_fixture.led_to_pin('1') == 3
+    assert boardfile_fixture.led_to_pin('10') == 5
 
 def test_i2c_interfaces(boardfile_fixture):
     expected = {'1': {'sda1': 7, 'scl1': 8},

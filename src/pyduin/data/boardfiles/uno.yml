@@ -34,6 +34,7 @@ pins:
   - physical_id: 13
     extra:
       - sck
+      - led1
   - physical_id: 14
     extra:
       - analog

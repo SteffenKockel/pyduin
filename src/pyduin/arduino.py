@@ -86,6 +86,10 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
         pin = self.boardfile.normalize_pin_id(pin)
         return self.Pins[pin]
 
+    def get_led(self, led:int):
+        """ Return the pin id of an led """
+        return self.boardfile.led_to_pin(led)
+
     def close_serial_connection(self):
         """
             Close the serial connection to the arduino.

@@ -243,6 +243,9 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
     subparsers.add_parser("dependencies", help="Check dependencies")
     subparsers.add_parser("versions", help="List versions", aliases=['v'])
     subparsers.add_parser("free", help="Get free memory from device", aliases='f')
+    ledparser = subparsers.add_parser("led", help="Interact with builtin LEDs (if available).")
+    ledparser.add_argument('led', help='The id of the LED to interact with.', type=int)
+    ledparser.add_argument('action', choices=['on','off'])
     firmware_parser = subparsers.add_parser("firmware", help="Firmware options", aliases=['fw'])
     fwsubparsers = firmware_parser.add_subparsers(help='Available sub-commands', dest="fwcmd")
     firmwareversion_parser = fwsubparsers.add_parser('version', aliases=['v'],
@@ -290,7 +293,7 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
     arduino = get_arduino(config)
     prepare_buildenv(arduino, config, args)
     #args.pin = arduino.boardfile.normalize_pin_id(args.pin)
-
+    print(args)
 
     if args.cmd in ('versions', 'v'):
         print(versions(arduino, config['workdir']))
@@ -320,6 +323,11 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
             lint_firmware()
             update_firmware(arduino)
         sys.exit(0)
+    elif args.cmd == 'led':
+        pin_id = arduino.get_led(args.led)
+        pin = arduino.get_pin(pin_id)
+        pin.set_mode('output')
+        res = pin.high() if args.action == 'on' else pin.low()
     elif args.cmd in ('pin', 'p'):
         if args.pincmd in ('high', 'low', 'h', 'l', 'pwm', 'p'):
             act = args.pincmd
