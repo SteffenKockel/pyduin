@@ -1,0 +1,89 @@
+---  # Testfile, This will not really work with a nano
+pin_type: arduino
+model: nanoatmega328
+baudrate: 115200
+
+spi:
+  ss: 10
+  mosi: 11
+  miso: 12
+  sck: 13
+
+pins:
+  - physical_id: 2
+  - physical_id: 3
+    extra:
+      - pwm
+      - led1
+  - physical_id: 4
+  - physical_id: 5
+    extra:
+      - pwm
+      - led10
+  - physical_id: 6
+    extra:
+      - pwm
+  - physical_id: 7
+    extra:
+      - sda1
+  - physical_id: 8
+    extra:
+      - scl1
+  - physical_id: 9
+    extra:
+      - pwm
+  - physical_id: 10
+    extra:
+      - pwm
+      - ss
+      - sda20
+  - physical_id: 11
+    extra:
+      - pwm
+      - mosi
+      - scl20
+  - physical_id: 12
+    extra:
+      - miso
+  - physical_id: 13
+    alias: D13
+    extra:
+      - led
+      - sck
+  - physical_id: 14
+    extra:
+      - analog
+    alias: A0
+  - physical_id: 15
+    extra:
+      - analog
+    alias: A1
+  - physical_id: 16
+    mode: input
+    extra:
+      - analog
+    alias: A2
+  - physical_id: 17
+    extra:
+      - analog
+    alias: A3
+  - physical_id: 18
+    extra:
+      - analog
+      - sda
+    alias: A4
+  - physical_id: 19
+    extra:
+      - analog
+      - scl
+    alias: A5
+  - physical_id: 20
+    extra:
+      - analog
+    alias: A6
+    mode: output
+  - physical_id: 21
+    extra:
+      - analog
+    mode: input_pullup
+    alias: A7
