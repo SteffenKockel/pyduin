@@ -52,7 +52,7 @@ pins:
     alias: A3
   - physical_id: 18
     extra:
-      - analaog
+      - analog
       - sda
     alias: A4
   - physical_id: 19
