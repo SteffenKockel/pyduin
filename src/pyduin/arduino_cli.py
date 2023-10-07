@@ -323,8 +323,7 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
             update_firmware(arduino)
         sys.exit(0)
     elif args.cmd == 'led':
-        pin_id = arduino.get_led(args.led)
-        pin = arduino.get_pin(pin_id)
+        pin = arduino.get_led(args.led)
         pin.set_mode('output')
         res = pin.high() if args.action == 'on' else pin.low()
     elif args.cmd in ('pin', 'p'):
