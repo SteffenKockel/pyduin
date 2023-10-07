@@ -56,7 +56,7 @@ To make meaningful use of the command-line features, the installation and usage 
 serial:
   use_socat: yes
 ```
-If `socat` is installed, a proxy will be started for every device that connections are made to. The pins get set up according to the pinfile and the initial modes get set on first connect. The following connections **will not reset the Arduino**. The proxy will stop safely on device disconnect. The proxy will also be stopped for flashing.
+If `socat` is installed, a proxy will be started for every device that connections are made to. The pins get set up according to the board file and the initial modes get set on first connect. The following connections **will not reset the Arduino**. The proxy will stop safely on device disconnect. The proxy will also be stopped for flashing.
 
 ## Usage
 
@@ -114,7 +114,7 @@ buddies:
   uber:
     board: nanoatmega328 # as in platformio. required.
     tty: /dev/uber # required
-    baudrate: 115200 # default derived from pinfile, optional
+    baudrate: 115200 # default derived from boardfile, optional
   under:
     board: uno
     tty: /dev/ttyUSB0
@@ -160,21 +160,21 @@ A pin can also be read from. Resulting in `0` or `1` for digital pins and a valu
 pyduin p A0 read
 ```
 
-#### Control the builtin leds
+#### Control the builtin LED's
 
-The builtin leds defined in the pinfile can be addressed by their corresponding names
+The builtin LED's defined in the board file can be addressed by their corresponding names
 
 ```bash
 pyduin -B foo led1 {on|off}
 ```
 Pyduin determines the correct read command in the background depending on the pins nature.
 
-#### Get firmware version from the Arduino
+#### Get firmware version from the Device
 
 ```bash
 pyduin --buddy uber firmware version [device|available]
 ```
-#### Get free memory from the Arduino
+#### Get free memory from the Device
 
 ```bash
 pyduin --buddy uber free
@@ -182,9 +182,11 @@ pyduin --buddy uber free
 
 ## Contribute
 
+To install the package in development mode, use `pip install -e`. This works pretty straight forward.
+
 ```
-mkdir pyduindev && cd !$
-git git@github.com:SteffenKockel/pyduin.git
+git clone git@github.com:SteffenKockel/pyduin.git
+cd pyduin
 virtualenv .
 . bin/activate
 pip install -e .
@@ -192,7 +194,10 @@ pip install -e .
 
 Pull requests welcome.
 
-### Add device
+### Add a currently unsupported device
 
-Adding a device works, by editing the `~/.pyduin/platformio.ini` and and provide a `pinfile`. These files and folders gets created, when attempting to flash firmware. Changes made here are preserved. A device must also provide a [pinfile](https://github.com/SteffenKockel/pyduin/tree/master/src/pyduin/data/pinfiles). The name of the pinfile should have the name of the corresponding board name (as in platformio).
-When developing, the pinfile can just be added in the Repository structure. To test a pinfile while not in development mode, the `-p` option can be used.
+Adding a device works, by editing the `~/.pyduin/platformio.ini` and and providing a board file. Pyduin creates a build environment for every supported board in `~/.pyduin/`. These files and folders get created, when attempting to flash firmware to a device. Changes made here are preserved.
+
+A device must also provide a [board file](https://github.com/SteffenKockel/pyduin/tree/master/src/pyduin/data/boardfiles). The name of the board file must use the name of the corresponding board name (as in platformio).
+
+When developing in edit mode `(pip install -e .)`, the board file can  be added to the libraries data folder. Also changes to the `platformio.ini` can be made persistent this way. Feel free to share added devices with a pull request.
