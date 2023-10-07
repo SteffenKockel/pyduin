@@ -51,6 +51,8 @@ class PyduinUtils:
     """ Wrapper for some useful functions. Exists, to be able to make
     use of @propget decorator and ease handling on the usage side """
 
+    _configfile = os.path.expanduser('~/.pyduin.yml')
+    _workdir = os.path.expanduser('~/.pyduin')
     @staticmethod
     def logger():
         """ Return the pyduin log facility
@@ -68,6 +70,17 @@ class PyduinUtils:
     def boardfiledir(self):
         """ Return the directory within the package, where the boardfiles resied """
         return os.path.join(self.package_root, 'data', 'boardfiles')
+
+    @property
+    def configfile(self):
+        """ Return the default path to the users config file """
+        return self._configfile
+
+    @property
+    def workdir(self):
+        """ Return the directory where the build environments live """
+        return self._workdir
+
 
     @property
     def firmwaredir(self):
@@ -100,8 +113,11 @@ class PyduinUtils:
         """ Return the pull path to default platformio.ini """
         return os.path.join(self.firmwaredir, 'platformio.ini')
 
-    def board_boardfile(self, board):
+    def boardfile_for(self, board):
         """ Return the full path to a specific boardfile in the package """
+        # check for overrides in workdir
+        if os.path.isfile(os.path.join(self.workdir, board, f'{board}.yml')):
+            return os.path.join(self.workdir, board, f'{board}.yml')
         return os.path.join(self.boardfiledir, f'{board}.yml')
 
     @staticmethod

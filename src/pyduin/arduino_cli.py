@@ -51,7 +51,7 @@ def get_basic_config(args):
     board = args.board or utils.get_buddy_cfg(cfg, args.buddy, 'board')
 
     if board:
-        cfg['boardfile'] = args.boardfile or utils.board_boardfile(board)
+        cfg['boardfile'] = args.boardfile or utils.boardfile_for(board)
         logger.debug("Using boardfile from: %s", cfg['boardfile'])
         cfg['board'] = board
     else:
@@ -78,8 +78,7 @@ def _get_arduino_config(args, config):
     arduino_config['tty'] = arduino_config.get('tty', False)
     arduino_config['baudrate'] = arduino_config.get('baudrate', False)
     if not arduino_config.get('boardfile'):
-        boardfile = os.path.join(utils.boardfiledir, f'{arduino_config["board"]}.yml')
-        arduino_config['boardfile'] = boardfile
+        arduino_config['boardfile'] = config['boardfile']
     logger.debug("device_config: %s", arduino_config)
     config['_arduino_'] = arduino_config
     model = config['_arduino_']['board']

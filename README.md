@@ -65,20 +65,18 @@ If `socat` is installed, a proxy will be started for every device that connectio
 After installation the `pyduin` module can be imported.
 ```python
 from pyduin import arduino
-from pyduin import _utils as utils
 
 board = 'nanoatmega328'
-boardfile = utils.board_boardfile(board)
 
 Arduino = arduino.Arduino(board=board,
                           tty='/dev/ttyUSB0',
-                          boardfile=boardfile,
                           wait=True)
 print(Arduino.firmware_version)
 pin = Arduino.get_pin(13)
 pin.set_mode('OUTPUT')
 pin.high()
 print(Arduino.free_memory)
+
 ```
 
 ## Command-line
