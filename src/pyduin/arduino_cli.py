@@ -283,16 +283,12 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
 
     log_level = args.log_level or config.get('log_level', 'info')
     logger.setLevel(level=getattr(logging, log_level.upper()))
-    #logger.basicConfig(level=getattr(logger, log_level.upper()))
     # re-read configs to be able to see the log messages.
     basic_config = get_basic_config(args)
     config = get_pyduin_userconfig(args, basic_config)
 
-    #if getattr(args, 'fwcmd', False) not in ('flash', 'f'):
     arduino = get_arduino(config)
     prepare_buildenv(arduino, config, args)
-    #args.pin = arduino.boardfile.normalize_pin_id(args.pin)
-    print(args)
 
     if args.cmd in ('versions', 'v'):
         print(versions(arduino, config['workdir']))
