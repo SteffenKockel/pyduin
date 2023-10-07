@@ -14,7 +14,7 @@ import yaml
 # Basic user config template
 CONFIG_TEMPLATE = """
 log_level: info
-#default_buddy: nano1
+# default_buddy: nano1
 
 serial:
   use_socat: no
@@ -27,6 +27,7 @@ buddies:
     tty: /dev/ttyUSB1
   uno1:
     board: uno
+    tty: /dev/ttyACM0
 """
 
 
@@ -72,6 +73,14 @@ class PyduinUtils:
         return os.path.join(self.package_root, 'data', 'boardfiles')
 
     @property
+    def supported_boards(self):
+        """ Return a list of supported board names. """
+        boards = []
+        for boardfile in os.listdir(self.boardfiledir):
+            boards.append(boardfile.split('.')[0])
+        return boards
+
+    @property
     def configfile(self):
         """ Return the default path to the users config file """
         return self._configfile
@@ -92,10 +101,12 @@ class PyduinUtils:
         """ Return full path to default firmware file """
         return os.path.join(self.firmwaredir, 'pyduin.cpp')
 
-    def available_firmware_version(self, workdir):
+    def available_firmware_version(self, workdir=None):
         """ Return the version of the firmware that resides in <workdir> over the
         the shipped one in data. If no custom firmware is available in <workdir>/src,
         then the version of the shipped firmware file in data is replied. """
+        if not workdir:
+            workdir = self._workdir
         if os.path.isfile(os.path.join(workdir, 'src', 'pyduin.cpp')):
             firmware = os.path.join(workdir, 'src', 'pyduin.cpp')
         else:
@@ -132,7 +143,7 @@ class PyduinUtils:
 
     @staticmethod
     def get_buddy_cfg(config, buddy, key=False):
-        """ Return the board used for a specific command. """
+        """ Return the requested buddy from the config . """
         if buddy:
             try:
                 if not key:
