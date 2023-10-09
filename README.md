@@ -28,7 +28,6 @@ This makes it easy to wire a sensor, switch to an IOT device, connect it to a co
 - OneWire (firmware works, not yet implemented in lib)
 - DHT Sensors (firmware works, not yet implemented in lib)
 - SPI (firmware works, not yet implemented in lib)
-- ...
 
 ## Device support
 
@@ -47,7 +46,7 @@ Only `pip` installs are available.
 ```bash
 pip install pyduin
 ```
-## Dependency socat
+### Dependency socat
 
 Opening a serial connection **resets most Arduinos**. `pyduin` circumvents this drawback with a `socat` proxy.
 
@@ -60,7 +59,7 @@ If `socat` is installed, a proxy will be started for every device that connectio
 
 ## Usage
 
-## As python module
+### As python module
 
 After installation the `pyduin` module can be imported.
 ```python
@@ -79,7 +78,7 @@ print(Arduino.free_memory)
 
 ```
 
-## Command-line
+### Command-line
 
 The command-line interface provides a help page for all options and commands.
 
@@ -141,7 +140,7 @@ It can also be done without the buddy list.
 pyduin --board nanoatmega328 --tty=/dev/mytty fw f
 ```
 
-#### Control the Arduinos pins
+### Control the Arduinos pins
 
  Using the command-line, the pins can be controlled as follows. The following command can be used to switch on and off digital pins.
 
@@ -158,7 +157,7 @@ A pin can also be read from. Resulting in `0` or `1` for digital pins and a valu
 pyduin p A0 read
 ```
 
-#### Control the builtin LED's
+### Control the builtin LED's
 
 The builtin LED's defined in the board file can be addressed by their corresponding names
 
@@ -167,12 +166,12 @@ pyduin -B foo led1 {on|off}
 ```
 Pyduin determines the correct read command in the background depending on the pins nature.
 
-#### Get firmware version from the Device
+### Get firmware version from the Device
 
 ```bash
 pyduin --buddy uber firmware version [device|available]
 ```
-#### Get free memory from the Device
+### Get free memory from the Device
 
 ```bash
 pyduin --buddy uber free
