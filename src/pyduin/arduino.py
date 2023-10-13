@@ -6,7 +6,7 @@
 """
     Arduino module
 """
-import os
+
 from collections import OrderedDict
 import logging
 import serial
@@ -28,28 +28,20 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
     pwm_cap_pins = False
     Busses = False
 
-    # pylint: disable=too-many-arguments
-    def __init__(self,  board=False, tty=False, baudrate=False, boardfile=False,
-                 serial_timeout=3, wait=False, socat=False, log_level=logging.INFO):
+    def __init__(self,  board, tty, **kwargs):
+
         self.board = board
         self.tty = tty
-        self.baudrate = baudrate
-        self._boardfile = boardfile or utils.boardfile_for(board)
-        self.boardfile = False
-        self.ready = False
-        self.wait = wait
-        self.serial_timeout = serial_timeout
+        self._boardfile = kwargs.get('boardfile', utils.boardfile_for(board))
+        self.wait = kwargs.get('wait', False)
+        self.serial_timeout = kwargs.get('serial_timeout', 3)
         self.Pins = OrderedDict()
-        self.socat = socat
+        self.socat = kwargs.get('socat', False)
         self.logger = utils.logger()
+        log_level = kwargs.get('log_level', logging.INFO)
         self.logger.setLevel(utils.loglevel_int(log_level))
         self.boardfile = BoardFile(self._boardfile)
-
-        if not os.path.isfile(self._boardfile):
-            raise DeviceConfigError(f'Cannot open boardfile: {self._boardfile}')
-
-        if not self.baudrate:
-            self.baudrate = self.boardfile.baudrate
+        self.baudrate = kwargs.get('baudrate', self.boardfile.baudrate)
 
         if self.socat:
             self.socat = SocatProxy(self.tty, self.baudrate, log_level=log_level)
@@ -68,9 +60,7 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
                 self.socat.start()
             self.Connection = serial.Serial(tty, self.baudrate, timeout=self.serial_timeout)  # pylint: disable=invalid-name
             self.setup_pins()
-            self.ready = True
         except serial.SerialException as error:
-            self.ready = False
             errmsg = f'Could not open Serial connection on {self.tty}'
             raise DeviceConfigError(errmsg) from error
 
@@ -94,13 +84,12 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
         """
             Close the serial connection to the arduino.
         """
-        self.Connection.close()
+        return self.Connection.close()
 
     def send(self, message):
         """
             Send a serial message to the arduino.
         """
-        # print(message)
         self.Connection.write(message.encode('utf-8'))
         if self.wait:
             msg = self.Connection.readline().decode('utf-8').strip()
@@ -119,7 +108,7 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
         res = self.send("<zv00000>")
         if self.wait:
             return res.split("%")[-1]
-        return True
+        return res
 
     @property
     def free_memory(self):

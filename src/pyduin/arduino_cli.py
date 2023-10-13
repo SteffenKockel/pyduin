@@ -149,9 +149,7 @@ def get_arduino(config):
     #     socat = SocatProxy(aconfig['tty'], aconfig['baudrate'], log_level=args.log_level)
     #     socat.start()
 
-    arduino = Arduino(tty=aconfig['tty'], baudrate=aconfig['baudrate'],
-                  boardfile=aconfig['boardfile'], board=aconfig['board'],
-                  wait=True, socat=config['serial']['use_socat'])
+    arduino = Arduino(aconfig['board'], aconfig['tty'], **config)
     return arduino
 
 def prepare_buildenv(arduino, config, args):
