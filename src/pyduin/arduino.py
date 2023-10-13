@@ -60,6 +60,7 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
                 self.socat.start()
             self.Connection = serial.Serial(tty, self.baudrate, timeout=self.serial_timeout)  # pylint: disable=invalid-name
             self.setup_pins()
+            return True
         except serial.SerialException as error:
             errmsg = f'Could not open Serial connection on {self.tty}'
             raise DeviceConfigError(errmsg) from error

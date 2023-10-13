@@ -16,11 +16,11 @@ class Mode:
 
     def __init__(self, pin, pin_mode):
         self.pin = weakref.proxy(pin)
+        self.logger = self.pin.arduino.logger
         self.wanted_mode = pin_mode
         self._setpinmodetext = f'Set pin mode for pin {self.pin.pin_id} to'
         if not self.pin.arduino.wait:
             self.set_mode(pin_mode)
-        self.logger = self.pin.arduino.logger
 
     def analog_or_digital(self):
         """

@@ -4,7 +4,8 @@ import logging
 import re
 import subprocess
 import time
-from shutil import copyfile, which, rmtree
+from shutil import copyfile, rmtree
+import shutil
 from collections import OrderedDict
 from jinja2 import Template
 from termcolor import colored
@@ -151,14 +152,12 @@ class PyduinUtils:
     @staticmethod
     def get_buddy_cfg(config, buddy, key=False):
         """ Return the requested buddy from the config . """
-        if buddy:
-            try:
-                if not key:
-                    return config['buddies'][buddy]
-                return config['buddies'][buddy][key]
-            except KeyError:
-                return False
-        return False
+        try:
+            if not key:
+                return config['buddies'][buddy]
+            return config['buddies'][buddy][key]
+        except KeyError:
+            return False
 
     @staticmethod
     def loglevel_int(level):
@@ -171,13 +170,13 @@ class PyduinUtils:
     def dependencies():
         """ Check, if platformio and socat are available. """
         ret = True
-        pio = which('pio')
+        pio = shutil.which('pio')
         if pio:
             print(colored(f'Platformio found in {pio}.', 'green'))
         else:
             print(colored('Platformio not installed. Flashing does not work.'))
             ret = False
-        socat = which('socat')
+        socat = shutil.which('socat')
         if socat:
             print(colored(f'Socat found in {socat}.', 'green'))
         else:
@@ -346,10 +345,8 @@ class BoardFile:
 
     def get_pin_config(self, pin_id:int):
         """ Return the configuration dict of a pin """
-        print(type(pin_id))
         try:
-            return list(filter(lambda x: pin_id in ((x['physical_id']),
-                        x.get('alias')), self.pins))[0]
+            return list(filter(lambda x: x['physical_id'] == pin_id, self.pins))[0]
         except IndexError:
             return {}
 
@@ -362,17 +359,15 @@ class AttrDict(dict):
 
 class SocatProxy:
     """ A class that represents a serial proxy based on socat """
-    debug = False
 
     # pylint: disable=too-many-arguments
-    def __init__(self, source_tty, baudrate, proxy_tty=None, config=None,
-                 log_level=logging.INFO):
+    def __init__(self, source_tty, baudrate, proxy_tty=None, log_level=logging.INFO):
         self.source_tty = source_tty
         self.baudrate = baudrate
         self.proxy_tty = proxy_tty
-        self.config = config
         self.logger = PyduinUtils.logger()
         self.logger.setLevel(PyduinUtils.loglevel_int(log_level))
+        self.debug = log_level==logging.DEBUG
 
         if not self.proxy_tty:
             proxy_tty = os.path.basename(source_tty)
@@ -397,19 +392,16 @@ class SocatProxy:
             subprocess.Popen(self.socat_cmd) # pylint: disable=consider-using-with
             print(colored(f'Started socat proxy on {self.proxy_tty}', 'cyan'))
             time.sleep(1)
+        return True
 
     def stop(self):
         """ Stop the socat proxy """
-        #cmd = f'ps aux | grep socat | grep -v grep | grep {self.proxy_tty} | awk '+"'{ print $2 }'"
         cmd = f'pgrep -a socat | grep "{self.proxy_tty}" | grep -Eo "^[0-9]+?"'
         pid = subprocess.check_output(cmd, shell=True).strip()
         subprocess.check_output(['kill', f'{pid.decode()}'])
         time.sleep(1)
+        return True
 
-
-    # @classmethod
-    # def get(cls, source_tty, baudrate, proxy_tty=None, config=None):
-    #     return(cls, source_tty, baudrate, proxy_tty, config)
 
 class BuildEnv:
     """ A class that represents a buildenv for device firmware """
@@ -430,12 +422,13 @@ class BuildEnv:
 
     def create(self, force_recreate=False):
         """ Create directories and copy over files """
-        if force_recreate:
-            rmtree(self.project_dir)
-            if os.path.isdir(self.project_dir):
-                raise BuildEnvError(f'Cannot recreate buildenv in {self.project_dir}')
-        os.makedirs(self.project_dir, exist_ok=True)
         self.logger.debug("Creating workdir in %s if not exists", self.project_dir)
+        try:
+            if force_recreate:
+                rmtree(self.project_dir)
+            os.makedirs(self.project_dir, exist_ok=True)
+        except PermissionError as err:
+            raise BuildEnvError(f'Cannot recreate buildenv in {self.project_dir}') from err
         platformio_ini_target = os.path.join(self.workdir, 'platformio.ini')
         if not os.path.isfile(platformio_ini_target):
             self.logger.debug("Copying: %s", platformio_ini_target)
@@ -475,7 +468,6 @@ class BuildEnv:
 
         with open(firmware, 'w', encoding='utf8') as template:
             template.write(tpl)
-
 
     def build(self):
         """ Build the firmware and upload it to the device. """
