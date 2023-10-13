@@ -6,6 +6,7 @@ import subprocess
 import time
 from shutil import copyfile, which, rmtree
 from collections import OrderedDict
+from jinja2 import Template
 from termcolor import colored
 import yaml
 
@@ -35,6 +36,12 @@ class DeviceConfigError(BaseException):
     """
         Error Class to throw on config errors
     """
+
+class BuildEnvError(BaseException):
+    """ Error class to be thrown on errors in the build environment """
+    def __init__(self, *args, msg=False, **kwargs):
+        _msg = msg or 'An error occurred in the build env.'
+        super().__init__(msg, *args, **kwargs)
 
 class PinNotFoundError(BaseException):
     """ Error class to throw, when a pin cannot be found """
@@ -78,7 +85,7 @@ class PyduinUtils:
         boards = []
         for boardfile in os.listdir(self.boardfiledir):
             boards.append(boardfile.split('.')[0])
-        return boards
+        return boards.sort()
 
     @property
     def configfile(self):
@@ -407,21 +414,26 @@ class SocatProxy:
 class BuildEnv:
     """ A class that represents a buildenv for device firmware """
 
-    # pylint: disable=too-many-arguments
+    # pylint: disable=too-many-arguments, too-many-instance-attributes
     def __init__(self, workdir, board, tty, platformio_ini=False, log_level=logging.INFO):
         self.utils = PyduinUtils()
         self.logger = self.utils.logger()
         self.workdir = os.path.expanduser(workdir)
         self.board = board
         self.tty = tty
-        self.platformio_ini = platformio_ini if platformio_ini else self.utils.platformio_ini
+        self.platformio_ini = platformio_ini or self.utils.platformio_ini
         self.project_dir = os.path.join(workdir, board)
         self.logger.setLevel(self.utils.loglevel_int(log_level))
+        self.cmd = ['pio', 'run', '-e', self.board,
+                    '-t', 'upload', '--upload-port', self.tty,
+                    '-d', self.project_dir, '-c', self.platformio_ini]
 
     def create(self, force_recreate=False):
         """ Create directories and copy over files """
         if force_recreate:
             rmtree(self.project_dir)
+            if os.path.isdir(self.project_dir):
+                raise BuildEnvError(f'Cannot recreate buildenv in {self.project_dir}')
         os.makedirs(self.project_dir, exist_ok=True)
         self.logger.debug("Creating workdir in %s if not exists", self.project_dir)
         platformio_ini_target = os.path.join(self.workdir, 'platformio.ini')
@@ -437,11 +449,41 @@ class BuildEnv:
             self.logger.debug("Copying: %s", firmware)
             copyfile(self.utils.firmware, firmware)
 
+    def template_firmware(self, arduino):
+        """ Render firmware from template """
+        _tpl = '{%s}'
+        fwenv = {
+            "num_analog_pins": arduino.boardfile.num_analog_pins,
+            "num_digital_pins": arduino.boardfile.num_digital_pins,
+            "num_pwm_pins": arduino.boardfile.num_pwm_pins,
+            "pwm_pins": _tpl % ", ".join(map(str, arduino.boardfile.pwm_pins)),
+            "analog_pins": _tpl % ", ".join(map(str, arduino.boardfile.analog_pins)),
+            "digital_pins": _tpl % ", ".join(map(str, arduino.boardfile.digital_pins)),
+            "physical_pins": _tpl % ", ".join(map(str, arduino.boardfile.physical_pin_ids)),
+            "num_physical_pins":  arduino.boardfile.num_physical_pins,
+            "extra_libs": '\n'.join(arduino.boardfile.extra_libs),
+            "baudrate": arduino.baudrate
+        }
+
+        firmware = os.path.join(self.workdir, self.board, 'src', 'pyduin.cpp')
+        self.logger.debug("Using firmware template: %s", firmware)
+
+        with open(firmware, 'r', encoding='utf-8') as template:
+            tpl = Template(template.read())
+            tpl = tpl.render(fwenv)
+            #logger.debug(tpl)
+
+        with open(firmware, 'w', encoding='utf8') as template:
+            template.write(tpl)
+
+
     def build(self):
         """ Build the firmware and upload it to the device. """
         os.chdir(self.workdir)
-        cmd = ['pio', 'run', '-e', self.board, '-t', 'upload', '--upload-port', self.tty,
-               '-d', self.project_dir, '-c', self.platformio_ini]
-        self.logger.debug(cmd)
-        out = subprocess.check_output(cmd)
-        print(out)
+        self.logger.debug(self.cmd)
+        try:
+            out = subprocess.check_output(self.cmd)
+            self.logger.debug(out)
+            return True
+        except subprocess.CalledProcessError as err:
+            raise BuildEnvError(f'Build in {self.workdir} failed') from err

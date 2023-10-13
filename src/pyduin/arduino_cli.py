@@ -13,7 +13,6 @@ import os
 import subprocess
 import sys
 
-from jinja2 import Template
 from termcolor import colored
 import yaml
 
@@ -170,7 +169,6 @@ def update_firmware(arduino):  # pylint: disable=too-many-locals,too-many-statem
     """
     if arduino.socat:
         arduino.socat.stop()
-
     arduino.buildenv.build()
 
 def versions(arduino, workdir):
@@ -180,32 +178,9 @@ def versions(arduino, workdir):
            "available": utils.available_firmware_version(workdir) }
     return res
 
-def template_firmware(arduino, config):
+def template_firmware(arduino):
     """ Render firmware from template """
-    _tpl = '{%s}'
-    fwenv = {
-        "num_analog_pins": arduino.boardfile.num_analog_pins,
-        "num_digital_pins": arduino.boardfile.num_digital_pins,
-        "num_pwm_pins": arduino.boardfile.num_pwm_pins,
-        "pwm_pins": _tpl % ", ".join(map(str, arduino.boardfile.pwm_pins)),
-        "analog_pins": _tpl % ", ".join(map(str, arduino.boardfile.analog_pins)),
-        "digital_pins": _tpl % ", ".join(map(str, arduino.boardfile.digital_pins)),
-        "physical_pins": _tpl % ", ".join(map(str, arduino.boardfile.physical_pin_ids)),
-        "num_physical_pins":  arduino.boardfile.num_physical_pins,
-        "extra_libs": '\n'.join(arduino.boardfile.extra_libs),
-        "baudrate": arduino.baudrate
-    }
-    workdir = os.path.expanduser(config["workdir"])
-    firmware = os.path.join(workdir, config['_arduino_']['board'], 'src', 'pyduin.cpp')
-    logger.debug("Using firmware template: %s", firmware)
-
-    with open(firmware, 'r', encoding='utf-8') as template:
-        tpl = Template(template.read())
-        tpl = tpl.render(fwenv)
-        #logger.debug(tpl)
-
-    with open(firmware, 'w', encoding='utf8') as template:
-        template.write(tpl)
+    arduino.buildenv.template_firmware(arduino)
 
 def lint_firmware():
     """ Static code check firmware """
@@ -309,10 +284,10 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
                 del _ver['pyduin']
                 print(_ver)
         elif args.fwcmd in ('lint', 'l'):
-            template_firmware(arduino, config)
+            template_firmware(arduino)
             lint_firmware()
         elif args.fwcmd in ('flash', 'f'):
-            template_firmware(arduino, config)
+            template_firmware(arduino)
             lint_firmware()
             update_firmware(arduino)
         sys.exit(0)
