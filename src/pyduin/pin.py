@@ -22,11 +22,11 @@ class Mode:
         if not self.pin.arduino.wait:
             self.set_mode(pin_mode)
 
-    def analog_or_digital(self):
-        """
-            Get the pin type (analog or digital)
-        """
-        return self.pin.pin_type
+    # def analog_or_digital(self):
+    #     """
+    #         Get the pin type (analog or digital)
+    #     """
+    #     return self.pin.pin_type
 
     def output(self):
         """
@@ -34,10 +34,8 @@ class Mode:
         """
         self.wanted_mode = self.pin.pin_mode = 'output'
         self.logger.info('%s OUTPUT', self._setpinmodetext)
-        message = "<MO%02d001>" if self.analog_or_digital() == 'digital' else "<MO%s030>"
-        message = message % self.pin.pin_id
         self.pin.pin_mode = 'output'
-        return self.pin.arduino.send(message)
+        return self.pin.arduino.send(f'<MO{self.pin.pin_id:02d}001>')
 
     def input(self):
         """
@@ -46,10 +44,8 @@ class Mode:
         self.wanted_mode = self.pin.pin_mode = 'input'
         self.wanted_mode = 'input'
         self.logger.info("%s INPUT", self._setpinmodetext)
-        message = "<MI%02d000>" if self.analog_or_digital() == 'digital' else "<MI%s000>"
-        message = message % self.pin.pin_id
         self.pin.pin_mode = 'input'
-        return self.pin.arduino.send(message)
+        return self.pin.arduino.send(f'<MI{self.pin.pin_id:02d}000>')
 
     def input_pullup(self):
         """
@@ -57,17 +53,19 @@ class Mode:
         """
         self.wanted_mode = self.pin.pin_mode = 'input_pullup'
         self.logger.info("%s INPUT_PULLUP", self._setpinmodetext)
-        message = "<MP%02d000>" if self.analog_or_digital() == 'digital' else "<MP%s000>"
-        message = message % self.pin.pin_id
         self.pin.pin_mode = 'input_pullup'
-        return self.pin.arduino.send(message)
+        return self.pin.arduino.send(f'<MP{self.pin.pin_id:02d}000>')
+
+    @property
+    def get_wanted_mode(self):
+        """ Return the mode expected for this pin """
+        return self.pin.pin_mode
 
     def get_mode(self):
         """
             Get the mode from this pin
         """
-        message = "<mm%02d000>" if self.analog_or_digital() == 'digital' else "<mm%sd000>"
-        message = message % self.pin.pin_id
+        message = f'<MR{self.pin.pin_id:02d}000>'
         return self.pin.arduino.send(message)
 
     def set_mode(self, mode):

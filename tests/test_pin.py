@@ -34,6 +34,7 @@ def test_set_pin_mode_input(device_fixture):
     pin = device_fixture.Pins[12]
     device_fixture.Connection.response = '0%12%0'
     assert pin.set_mode('input') == '0%12%0'
+    assert pin.Mode.get_wanted_mode == 'input'
     assert pin.get_mode() == '0%12%0'
 
 def test_set_pin_mode_input_pullup(device_fixture):
@@ -46,11 +47,9 @@ def test_set_pin_mode_invalid_pin_mode(device_fixture):
     pin = device_fixture.Pins[9]
     assert not pin.set_mode('foo')
 
-# def test_pin_digital_write(device_fixture):
-#     pin = device_fixture.Pins[6]
-#     device_fixture.Connection.response = '0%6%1'
-#     assert pin.read() == '0%6%1'
-#     assert pin.message == '<DW06001>'
+def test_pin_wanted_mode(device_fixture):
+    pin = device_fixture.get_pin('13')
+    assert pin.Mode.get_wanted_mode == 'input_pullup'
 
 def test_pin_analog_write(device_fixture):
     pin = device_fixture.get_pin('A3')
