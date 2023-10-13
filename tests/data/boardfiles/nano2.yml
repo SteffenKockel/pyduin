@@ -3,11 +3,10 @@ pin_type: arduino
 model: nanoatmega328
 baudrate: 115200
 
-spi:
-  ss: 10
-  mosi: 11
-  miso: 12
-  sck: 13
+firmware:
+  extra_libs:
+    - foo
+    - bar
 
 pins:
   - physical_id: 2

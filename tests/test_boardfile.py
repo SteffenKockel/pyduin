@@ -2,13 +2,16 @@
 # -*- coding: utf-8 -*-
 
 import pytest
-from pyduin.utils import PinNotFoundError, BoardFile
+from pyduin.utils import PinNotFoundError, BoardFile, DeviceConfigError
 
 @pytest.fixture(scope="module")
 def boardfile_fixture():
     _boardfile = BoardFile('tests/data/boardfiles/nano2.yml')
     return _boardfile
 
+@pytest.fixture(scope="module")
+def boardfile_fixture_extra_libs():
+    yield BoardFile('tests/data/boardfiles/nano3.yml')
 
 def test_digital_pins(boardfile_fixture):
     expected = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
@@ -57,3 +60,17 @@ def test_normalize_pin_failure(boardfile_fixture):
     for data in dataset:
         with pytest.raises(PinNotFoundError) as result:
             assert boardfile_fixture.normalize_pin_id(data) == result
+
+def test_get_pin_config(boardfile_fixture):
+    data = {'alias': 'D13', 'extra': ['led', 'sck'], 'physical_id': 13}
+    assert boardfile_fixture.get_pin_config(13) == data
+    assert boardfile_fixture.get_pin_config(1) == {}
+
+
+def test_extra_libs(boardfile_fixture_extra_libs):
+    assert boardfile_fixture_extra_libs.extra_libs == ['foo', 'bar']
+
+def test_boardfile_unreadable():
+    # pylint: disable=unused-variable
+    with pytest.raises(DeviceConfigError) as err:
+        BoardFile('test/data/boardfiles/nonexistsnt.yml')

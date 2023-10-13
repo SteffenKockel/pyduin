@@ -1,0 +1,11 @@
+---  # Testfile, This will not really work with a nano
+pin_type: arduino
+model: nanoatmega328
+baudrate: 115200
+
+firmware:
+  extra_libs:
+    - foo
+    - bar
+
+pins: []
