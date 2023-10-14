@@ -5,3 +5,4 @@ pytest
 coverage
 PyYAML
 termcolor
+pytest-console-scripts
