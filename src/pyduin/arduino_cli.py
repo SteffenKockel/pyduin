@@ -62,7 +62,7 @@ def _get_arduino_config(args, config):
     """
     Determine tty, baudrate, model and boardfile for the currently used arduino.
     """
-    arduino_config = {}
+    arduino_config = {'wait': True,}
     for opt in ('tty', 'baudrate', 'board', 'boardfile'):
         _opt = getattr(args, opt)
         arduino_config[opt] = _opt
@@ -87,6 +87,7 @@ def _get_arduino_config(args, config):
     if not os.path.isfile(arduino_config['boardfile']):
         errmsg = f'Cannot find boardfile {arduino_config["boardfile"]}'
         raise DeviceConfigError(errmsg)
+    arduino_config['socat'] = config['serial']['use_socat']
     return config
 
 def verify_buddy(buddy, config):
@@ -147,8 +148,7 @@ def get_arduino(config):
     # if config['serial']['use_socat'] and getattr(args, 'fwcmd', '') not in ('flash', 'f'):
     #     socat = SocatProxy(aconfig['tty'], aconfig['baudrate'], log_level=args.log_level)
     #     socat.start()
-
-    arduino = Arduino(aconfig['board'], aconfig['tty'], **config)
+    arduino = Arduino(**aconfig)
     return arduino
 
 def prepare_buildenv(arduino, config, args):

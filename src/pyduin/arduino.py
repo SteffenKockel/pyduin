@@ -41,7 +41,7 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
         log_level = kwargs.get('log_level', logging.INFO)
         self.logger.setLevel(utils.loglevel_int(log_level))
         self.boardfile = BoardFile(self._boardfile)
-        self.baudrate = kwargs.get('baudrate', self.boardfile.baudrate)
+        self.baudrate = kwargs.get('baudrate', False) or self.boardfile.baudrate
 
         if self.socat:
             self.socat = SocatProxy(self.tty, self.baudrate, log_level=log_level)
