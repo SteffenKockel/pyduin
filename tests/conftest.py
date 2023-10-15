@@ -7,6 +7,15 @@ import serial
 from pyduin.arduino import Arduino as Device
 from pyduin.utils import BuildEnv
 
+
+def which_success(path):
+    return f'/foo/bin/{path}'
+
+# pylint: disable=unused-argument
+def which_fail(path):
+    return None
+
+
 class SerialMock():
     """ Intended to replace the serial module during tests """
     _ret =  "Hello from fixture."
@@ -70,3 +79,15 @@ def buildenv_fixture(monkeypatch, tmp_path):
     rlist = ['-t', 'upload', '--upload-port', '/mock/tty']
     buildenv.cmd = list(filter(lambda x: x not in rlist, buildenv.cmd))
     yield buildenv
+
+@pytest.fixture
+def cli_runner(monkeypatch):
+    monkeypatch.setattr('serial.Serial', SerialMock)
+
+@pytest.fixture
+def cli_runner_which_success(cli_runner, monkeypatch):
+    monkeypatch.setattr('shutil.which', which_success)
+
+@pytest.fixture
+def cli_runner_which_fail(cli_runner, monkeypatch):
+    monkeypatch.setattr('shutil.which', which_fail)

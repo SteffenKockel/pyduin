@@ -7,127 +7,17 @@
     Arduino CLI functions and templates
 """
 import argparse
-import configparser
 import logging
-import os
 import subprocess
 import sys
 
-from termcolor import colored
-import yaml
-
-
 from pyduin.arduino import Arduino
 from pyduin import _utils as utils
-from pyduin import AttrDict, VERSION, DeviceConfigError, BuildEnv
+from pyduin import VERSION, BuildEnv
+from pyduin.utils import CliConfig
 
 logger = utils.logger()
 
-def get_basic_config(args):
-    """
-        Get configuration,  needed for all operations
-    """
-    configfile = args.configfile or '~/.pyduin.yml'
-    confpath = os.path.expanduser(configfile)
-    utils.ensure_user_config_file(confpath)
-    with open(confpath, 'r', encoding='utf-8') as _configfile:
-        cfg = yaml.load(_configfile, Loader=yaml.Loader)
-    logger.debug("Using configuration file: %s", confpath)
-
-    workdir = args.workdir or cfg.get('workdir', '~/.pyduin')
-    logger.debug("Using workdir %s", workdir)
-    cfg['workdir'] = os.path.expanduser(workdir)
-
-    platformio_ini = args.platformio_ini or utils.platformio_ini
-    logger.debug("Using platformio.ini in: %s", platformio_ini)
-    cfg['platformio_ini'] = platformio_ini
-
-    cfg['firmware'] = getattr(args, "firmware_file", False) or utils.firmware
-    logger.debug("Using firmware from: %s", cfg['firmware'])
-    if not args.buddy and not args.board and cfg.get('default_buddy'):
-        args.buddy = cfg['default_buddy']
-
-    board = args.board or utils.get_buddy_cfg(cfg, args.buddy, 'board')
-
-    if board:
-        cfg['boardfile'] = args.boardfile or utils.boardfile_for(board)
-        logger.debug("Using boardfile from: %s", cfg['boardfile'])
-        cfg['board'] = board
-    else:
-        logger.error("Cannot determine boardfile: %s", board)
-        cfg['boardfile'] = False
-    return cfg
-
-def _get_arduino_config(args, config):
-    """
-    Determine tty, baudrate, model and boardfile for the currently used arduino.
-    """
-    arduino_config = {'wait': True,}
-    for opt in ('tty', 'baudrate', 'board', 'boardfile'):
-        _opt = getattr(args, opt)
-        arduino_config[opt] = _opt
-        if not _opt:
-            try:
-                _opt = config['buddies'][args.buddy][opt]
-                arduino_config[opt] = _opt
-            except KeyError:
-                logger.debug("%s not set in buddylist", opt)
-
-    # Ensure defaults.
-    arduino_config['tty'] = arduino_config.get('tty', False)
-    arduino_config['baudrate'] = arduino_config.get('baudrate', False)
-    if not arduino_config.get('boardfile'):
-        arduino_config['boardfile'] = config['boardfile']
-    logger.debug("device_config: %s", arduino_config)
-    config['_arduino_'] = arduino_config
-    model = config['_arduino_']['board']
-    check_board_support(model, config)
-    logger.debug("Using boardfile: %s", arduino_config['boardfile'])
-
-    if not os.path.isfile(arduino_config['boardfile']):
-        errmsg = f'Cannot find boardfile {arduino_config["boardfile"]}'
-        raise DeviceConfigError(errmsg)
-    arduino_config['socat'] = config['serial']['use_socat']
-    return config
-
-def verify_buddy(buddy, config):
-    """
-    Determine if the given buddy is defined in config file and the configfile has
-    a 'buddies' section at all.
-    """
-    if not config.get('buddies'):
-        raise DeviceConfigError("Configfile is missing 'buddies' section")
-    if not config['buddies'].get(buddy):
-        errmsg = f'Buddy "{buddy}" not described in configfile\'s "buddies" section. Aborting.'
-        raise DeviceConfigError(errmsg)
-    return True
-
-
-def check_board_support(board, config):
-    """
-    Determine if the configured model is supported. Do so by checking the
-    platformio config file for env definitions.
-    """
-    parser = configparser.ConfigParser(dict_type=AttrDict)
-    parser.read(config['platformio_ini'])
-    sections = parser.sections()
-    boards = [x.split(':')[-1] for x in sections if x.startswith('env:')]
-    if not board in boards:
-        logger.error("Board (%s) not in supported boards list %s",
-            board, boards)
-        return False
-    return True
-
-
-
-def get_pyduin_userconfig(args, config):
-    """
-        Get advanced config for arduino interaction
-    """
-    if args.buddy:
-        verify_buddy(args.buddy, config)
-    config = _get_arduino_config(args, config)
-    return config
 
 def get_arduino(config):
     """
@@ -138,27 +28,25 @@ def get_arduino(config):
         * Start a socat proxy
         * Do not hang_up_on close
     """
-    if config['serial']['hang_up_on_close'] and config['serial']['use_socat']:
-        errmsg = "Will not handle 'use_socat:yes' in conjunction with 'hang_up_on_close:no'" \
-                 "Either set 'use_socat' to 'no' or 'hang_up_on_close' to 'yes'."
-        raise DeviceConfigError(errmsg)
+    # if config['serial']['hang_up_on_close'] and config['serial']['use_socat']:
+    #     errmsg = "Will not handle 'use_socat:yes' in conjunction with 'hang_up_on_close:no'" \
+    #              "Either set 'use_socat' to 'no' or 'hang_up_on_close' to 'yes'."
+    #     raise DeviceConfigError(errmsg)
 
-    aconfig = config['_arduino_']
+    # aconfig = config['_arduino_']
     # socat = False
     # if config['serial']['use_socat'] and getattr(args, 'fwcmd', '') not in ('flash', 'f'):
     #     socat = SocatProxy(aconfig['tty'], aconfig['baudrate'], log_level=args.log_level)
     #     socat.start()
-    arduino = Arduino(**aconfig)
+    arduino = Arduino(**config)
     return arduino
 
 def prepare_buildenv(arduino, config, args):
     """ Idempotent function that ensures the platformio build env exists and contains
     the required files in the wanted state. """
 
-    buildenv = BuildEnv(config['workdir'], config['_arduino_']['board'],
-                        config['_arduino_']['tty'],
-                        log_level=args.log_level,
-                        platformio_ini=config['platformio_ini'])
+    buildenv = BuildEnv(config.workdir, config.board, config.tty, log_level=config.log_level,
+                        platformio_ini=config.platformio_ini)
     buildenv.create(force_recreate=getattr(args, 'no_cache', False))
     setattr(arduino, 'buildenv', buildenv)
 
@@ -247,24 +135,15 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
     digitalpin_parser_pwm.add_argument('value', type=int, help='0-255')
 
     args = parser.parse_args()
-    try:
-        basic_config = get_basic_config(args)
-        config = get_pyduin_userconfig(args, basic_config)
-    except DeviceConfigError as error:
-        print(colored(error, 'red'))
-        sys.exit(1)
-
-    log_level = args.log_level or config.get('log_level', 'info')
+    config = CliConfig(args)
+    log_level = args.log_level or config.log_level
     logger.setLevel(level=getattr(logging, log_level.upper()))
-    # re-read configs to be able to see the log messages.
-    basic_config = get_basic_config(args)
-    config = get_pyduin_userconfig(args, basic_config)
+    arduino = get_arduino(config.arduino_config)
 
-    arduino = get_arduino(config)
     prepare_buildenv(arduino, config, args)
 
     if args.cmd in ('versions', 'v'):
-        print(versions(arduino, config['workdir']))
+        print(versions(arduino, config.workdir))
         sys.exit(0)
     elif args.cmd == "dependencies":
         utils.dependencies()
@@ -274,7 +153,7 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
         sys.exit(0)
     elif args.cmd in ('firmware', 'fw'):
         if args.fwcmd in ('version', 'v'):
-            _ver = versions(arduino, config['workdir'])
+            _ver = versions(arduino, config.workdir)
             print(_ver)
             if args.fwscmd in ('device', 'd'):
                 print(_ver['device'])
@@ -319,7 +198,7 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
         sys.exit(0)
     else:
         print("Nothing to do")
-    sys.exit(1)
-
+        sys.exit(1)
+    sys.exit(0)
 if __name__ == '__main__':
     main()

@@ -12,7 +12,7 @@ import logging
 import serial
 
 from pyduin import _utils as utils
-from pyduin import BoardFile, DeviceConfigError, SocatProxy
+from pyduin import DeviceConfigError, SocatProxy
 from pyduin.pin import ArduinoPin
 
 IMMEDIATE_RESPONSE = True
@@ -22,17 +22,10 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
     """
         Arduino object that can send messages to any arduino
     """
-    Connection = False
-    analog_pins = False
-    digital_pins = False
-    pwm_cap_pins = False
-    Busses = False
-
     def __init__(self,  board, tty, **kwargs):
 
-        self.board = board
         self.tty = tty
-        self._boardfile = kwargs.get('boardfile', utils.boardfile_for(board))
+        self.board = board
         self.wait = kwargs.get('wait', False)
         self.serial_timeout = kwargs.get('serial_timeout', 3)
         self.Pins = OrderedDict()
@@ -40,7 +33,7 @@ class Arduino:  # pylint: disable=too-many-instance-attributes
         self.logger = utils.logger()
         log_level = kwargs.get('log_level', logging.INFO)
         self.logger.setLevel(utils.loglevel_int(log_level))
-        self.boardfile = BoardFile(self._boardfile)
+        self.boardfile = utils.get_boardfile_obj(self.board)
         self.baudrate = kwargs.get('baudrate', False) or self.boardfile.baudrate
 
         if self.socat:

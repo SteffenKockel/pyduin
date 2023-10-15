@@ -1,4 +1,5 @@
 """ Useful functions to save redundant code """
+import configparser
 import os
 import logging
 import re
@@ -11,8 +12,6 @@ from jinja2 import Template
 from termcolor import colored
 import yaml
 
-#from .arduino import DeviceConfigError
-
 # Basic user config template
 CONFIG_TEMPLATE = """
 log_level: info
@@ -24,7 +23,7 @@ serial:
 
 buddies:
   nano1:
-    board: nanoatmega238
+    board: nanoatmega328
     use_socat: yes
     tty: /dev/ttyUSB1
   uno1:
@@ -81,14 +80,6 @@ class PyduinUtils:
         return os.path.join(self.package_root, 'data', 'boardfiles')
 
     @property
-    def supported_boards(self):
-        """ Return a list of supported board names. """
-        boards = []
-        for boardfile in os.listdir(self.boardfiledir):
-            boards.append(boardfile.split('.')[0])
-        return boards.sort()
-
-    @property
     def configfile(self):
         """ Return the default path to the users config file """
         return self._configfile
@@ -97,7 +88,6 @@ class PyduinUtils:
     def workdir(self):
         """ Return the directory where the build environments live """
         return self._workdir
-
 
     @property
     def firmwaredir(self):
@@ -139,6 +129,10 @@ class PyduinUtils:
             return os.path.join(self.workdir, board, f'{board}.yml')
         return os.path.join(self.boardfiledir, f'{board}.yml')
 
+    def get_boardfile_obj(self, board):
+        """ Get the boardfile object for a given board """
+        return BoardFile(self.boardfile_for(board))
+
     @staticmethod
     def ensure_user_config_file(location):
         """ Check, if basic config file ~/.pyduin.yml exists, else create
@@ -174,7 +168,7 @@ class PyduinUtils:
         if pio:
             print(colored(f'Platformio found in {pio}.', 'green'))
         else:
-            print(colored('Platformio not installed. Flashing does not work.'))
+            print(colored('Platformio not installed. Flashing does not work.', 'red'))
             ret = False
         socat = shutil.which('socat')
         if socat:
@@ -199,6 +193,7 @@ class BoardFile:
     pins = OrderedDict()
     _boardfile = False
     _baudrate = False
+    boardfile_dir = False
 
     def __init__(self, boardfile):
         if not os.path.isfile(boardfile):
@@ -206,7 +201,7 @@ class BoardFile:
 
         with open(boardfile, 'r', encoding='utf-8') as pfile:
             self._boardfile = yaml.load(pfile, Loader=yaml.Loader)
-
+        self.boardfile_dir = boardfile
         self.pins = sorted(list(self._boardfile['pins']),
                        key=lambda x: int(x['physical_id']))
 
@@ -243,7 +238,7 @@ class BoardFile:
                     self._spi_interfaces[num[0]][match] = pin_id
 
 
-        self._baudrate = self._boardfile['baudrate']
+        self._baudrate = self._boardfile.get('baudrate', False)
 
     @property
     def analog_pins(self) -> list:
@@ -479,3 +474,160 @@ class BuildEnv:
             return True
         except subprocess.CalledProcessError as err:
             raise BuildEnvError(f'Build in {self.workdir} failed') from err
+
+# pylint: disable=too-many-instance-attributes
+class CliConfig:
+    """ This class represents a configuration object needed for
+    the commandline interface to work """
+    default_config_path = '~/.pyduin.yml'
+    default_workdir = '~/.pyduin'
+    workdir = False
+    platformio_ini = False
+    firmware_file = False
+    buddy = False
+    utils = PyduinUtils()
+    logger = utils.logger()
+    config_template = CONFIG_TEMPLATE
+    board = False
+    boardfile = False
+    baudrate = False
+    socat = False
+    userconfig = False
+
+    def __init__(self, args):
+        """ Determine which userconfig and log_level to use.  """
+        self.args = args
+        self.set_userconfig()
+        self.set_loglevel()
+        self.logger.debug("Using configuration file: %s", self.userconfig_file)
+        self.set_workdir()
+        self.set_platformio_ini()
+        self.set_firmware_file()
+        self.set_buddy()
+        self.set_board()
+        self.set_tty()
+        self.set_baudrate()
+        self.set_use_socat()
+
+    def set_userconfig(self):
+        """ Determine which userconfig to use and how to access it """
+        configfile = self.args.configfile or os.path.expanduser(self.default_config_path)
+        if isinstance(configfile, str):
+            if not os.path.isfile(configfile):
+                self.create_default_userconfig(configfile)
+            with open(configfile, 'r', encoding='utf-8') as _configfile:
+                self.userconfig = yaml.load(_configfile, Loader=yaml.Loader)
+            self.userconfig_file = configfile
+        else:
+            self.userconfig = yaml.safe_load(configfile)
+            self.userconfig_file = os.path.abspath(configfile.name)
+
+
+    def create_default_userconfig(self, location, rewrite=False):
+        """ Check, if basic config file ~/.pyduin.yml exists, else create
+        basic config from template.
+        """
+        if not os.path.isfile(location) or rewrite:
+            self.logger.info('Writing default config file to %s', location)
+            with open(location, 'w', encoding='utf-8') as _configfile:
+                _configfile.write(self.config_template)
+
+    def set_loglevel(self):
+        """ Determine, which log level to use """
+        self.log_level = self.args.log_level or self.userconfig.get('log_level', 'info')
+        self.logger.setLevel(getattr(logging, self.log_level.upper()))
+
+    def set_workdir(self):
+        """ Determine, which workdir to use """
+        self.workdir = self.args.workdir or \
+            self.userconfig.get('workdir', self.default_workdir)
+        self.logger.debug("Using workdir %s", self.workdir)
+
+    def set_platformio_ini(self):
+        """ Determine, which platformio.ini to use """
+        self.platformio_ini = self.args.platformio_ini or self.utils.platformio_ini
+        self.logger.debug("Using platformio.ini in: %s", self.platformio_ini)
+
+    def set_firmware_file(self):
+        """ Determine, which firmware file to use """
+        self.firmware_file = self.utils.firmware
+        self.logger.debug("Using firmware from %s", self.firmware_file)
+
+    def set_buddy(self):
+        """ Determine if the given buddy is defined in config file and the configfile has
+        a 'buddies' section at all. """
+        self.buddy = self.args.buddy or self.userconfig.get('default_buddy', False)
+        self.logger.debug("Using buddy '%s'", self.buddy)
+        if not self.userconfig.get('buddies'):
+            self.logger.info("Configfile is missing 'buddies' section")
+            self.userconfig['buddies'] = {}
+        if self.buddy and not self.userconfig['buddies'].get(self.buddy):
+            errmsg = f'Buddy "{self.buddy}" not described in configfile\'s "buddies" section.'
+            raise DeviceConfigError(errmsg)
+        return True
+
+    def check_board_support(self, board):
+        """
+        Determine if the configured model is supported. Do so by checking the
+        platformio config file for env definitions.
+        """
+        parser = configparser.ConfigParser(dict_type=AttrDict)
+        parser.read(self.platformio_ini)
+        sections = parser.sections()
+        boards = [x.split(':')[-1] for x in sections if x.startswith('env:')]
+        for boardfile in os.listdir(self.utils.boardfiledir):
+            boards.append(boardfile.split('.')[0])
+        boards = list(dict.fromkeys(list(filter(lambda x: boards.count(x)==2, boards))))
+        if not board in boards:
+            msg = f'Board ({board}) not in supported boards list {boards}'
+            self.logger.error(msg)
+            raise DeviceConfigError(msg)
+        return True
+
+    def set_board(self):
+        """ Determine, which board to use """
+        self.board = self.args.board
+        if self.buddy and not self.board:
+            self.board = self.userconfig['buddies'][self.buddy].get('board', False)
+        if not self.board:
+            raise DeviceConfigError("Cannot determine board for desired action.")
+        self.logger.debug('Using board %s', self.board)
+        self.check_board_support(self.board)
+        self.boardfile = self.utils.get_boardfile_obj(self.board)
+
+    def set_tty(self):
+        """ Determine, which tty to use """
+        self.tty = self.args.tty
+        if self.buddy and not self.tty:
+            self.tty = self.userconfig['buddies'][self.buddy].get('tty', False)
+        if not self.tty:
+            raise DeviceConfigError("Cannot determine tty to use for desired action.")
+
+    def set_baudrate(self):
+        """ Determine, which baudrate to use """
+        self.baudrate = self.args.baudrate
+        if self.buddy and not self.baudrate:
+            self.baudrate = self.userconfig['buddies'][self.buddy].get('baudrate', False)
+        if not self.baudrate:
+            self.baudrate =  self.boardfile.baudrate
+        self.logger.debug('Using baudrate %s', self.baudrate)
+        if not self.baudrate:
+            raise DeviceConfigError("Cannot determine baudrate to use for feature.")
+
+    def set_use_socat(self):
+        """ Determine whether to use socat proxy or not """
+        if self.buddy:
+            self.socat = self.userconfig['buddies'][self.buddy].get('use_socat', None)
+        if self.socat is None:
+            self.socat = self.userconfig['serial'].get('use_socat', False)
+
+    @property
+    def arduino_config(self):
+        """ Return a usable configuration dict for the Arduino class """
+        return {
+            'wait': True,
+            'tty': self.tty,
+            'baudrate': self.baudrate,
+            'boardfile': self.boardfile,
+            'socat': self.socat,
+            'board': self.board }

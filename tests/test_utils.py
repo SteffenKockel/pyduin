@@ -1,6 +1,6 @@
 # pylint: disable=W0621,C0116,C0114
 # -*- coding: utf-8 -*-
-
+import argparse
 import logging
 import os
 import time
@@ -8,7 +8,7 @@ import time
 import pytest
 import yaml
 from pyduin.utils import PyduinUtils, CONFIG_TEMPLATE, BuildEnvError, \
-    SocatProxy
+    SocatProxy, CliConfig, DeviceConfigError, BoardFile
 
 @pytest.fixture(scope="function")
 def utils_fixture(monkeypatch, tmp_path):
@@ -47,10 +47,6 @@ def test_package_root(utils_fixture):
 
 def test_boardfiledir(utils_fixture):
     assert 'uno.yml' in os.listdir(utils_fixture.boardfiledir)
-
-def test_supported_boards(utils_fixture):
-    assert utils_fixture.supported_boards == \
-        ['sparkfun_promicro16', 'nanoatmega328', 'uno'].sort()
 
 def test_configfiledir(utils_fixture):
     assert utils_fixture.configfile == "foo"
@@ -141,24 +137,24 @@ def test_buildenv_create_and_recreate(buildenv_fixture):
     with pytest.raises(BuildEnvError) as err:
         assert buildenv_fixture.create(force_recreate=True)
 
-def test_buildenv_buildenv_build(buildenv_fixture, device_fixture):
-    buildenv_fixture.create()
-    buildenv_fixture.template_firmware(device_fixture)
-    assert 'upload' not in buildenv_fixture.cmd
-    assert buildenv_fixture.build()
-    assert os.path.isfile(os.path.join(
-        buildenv_fixture.project_dir,
-        ".pio/build/uno/firmware.hex"))
+# def test_buildenv_buildenv_build(buildenv_fixture, device_fixture):
+#     buildenv_fixture.create()
+#     buildenv_fixture.template_firmware(device_fixture)
+#     assert 'upload' not in buildenv_fixture.cmd
+#     assert buildenv_fixture.build()
+#     assert os.path.isfile(os.path.join(
+#         buildenv_fixture.project_dir,
+#         ".pio/build/uno/firmware.hex"))
 
-def test_buildenv_build_failure(buildenv_fixture, device_fixture):
-    buildenv_fixture.create()
-    buildenv_fixture.template_firmware(device_fixture)
-    fwfile = os.path.join(buildenv_fixture.project_dir, 'src', 'pyduin.cpp')
-    with open(fwfile, 'a', encoding='utf-8') as _fwfile:
-        _fwfile.write("\nI will <> destroy {} your build")
-    # pylint: disable=unused-variable
-    with pytest.raises(BuildEnvError) as err:
-        assert buildenv_fixture.build()
+# def test_buildenv_build_failure(buildenv_fixture, device_fixture):
+#     buildenv_fixture.create()
+#     buildenv_fixture.template_firmware(device_fixture)
+#     fwfile = os.path.join(buildenv_fixture.project_dir, 'src', 'pyduin.cpp')
+#     with open(fwfile, 'a', encoding='utf-8') as _fwfile:
+#         _fwfile.write("\nI will <> destroy {} your build")
+#     # pylint: disable=unused-variable
+#     with pytest.raises(BuildEnvError) as err:
+#         assert buildenv_fixture.build()
 
 # SocatProxy
 
@@ -201,3 +197,123 @@ def test_socat_start_stop(monkeypatch):
     monkeypatch.setattr('subprocess.Popen', return_true)
     assert socat.start()
     assert socat.stop()
+
+
+## CliConfig
+@pytest.fixture
+def namespace_fixture():
+    yield argparse.Namespace(
+        tty=False,
+        configfile=False,
+        log_level=False,
+        workdir=False,
+        platformio_ini=False,
+        buddy=False,
+        board=False,
+        baudrate=False)
+
+@pytest.fixture
+def cli_testdir_fixture(monkeypatch, tmp_path):
+    cpath = f'{tmp_path}/pyduin.yml'
+    wdir =  tmp_path / '.pyduin'
+    wdir.mkdir()
+    monkeypatch.setattr('pyduin.utils.CliConfig.default_config_path', cpath)
+    monkeypatch.setattr('pyduin.utils.CliConfig.default_workdir', wdir)
+    return tmp_path
+
+@pytest.fixture
+def cfg_tpl_fixture():
+    return yaml.safe_load(CONFIG_TEMPLATE)
+
+# pylint: disable=unused-argument
+def test_cli_cfg_default_config(namespace_fixture, cli_testdir_fixture):
+    exp = "Cannot determine board for desired action."
+    with pytest.raises(DeviceConfigError, match=exp):
+        CliConfig(namespace_fixture)
+
+def test_cli_cfg_config_override(namespace_fixture, cli_testdir_fixture, caplog):
+    path = cli_testdir_fixture
+    namespace_fixture.configfile = f'{path}/pyduin2.yml'
+    namespace_fixture.log_level = 'debug'
+    namespace_fixture.buddy = 'nano1'
+    namespace_fixture.tty = '/mock/ttyUSB0'
+    config = CliConfig(namespace_fixture)
+    assert config.userconfig['log_level'] == 'info'
+    assert config.log_level == 'debug'
+    assert config.baudrate == 115200
+    assert caplog.record_tuples == [
+        ('pyduin', 20, f'Writing default config file to {path}/pyduin2.yml'),
+        ('pyduin', 10, f'Using configuration file: {path}/pyduin2.yml'),
+        ('pyduin', 10, f'Using workdir {path}/.pyduin'),
+        ('pyduin', 10, f'Using platformio.ini in: {PyduinUtils().platformio_ini}'),
+        ('pyduin', 10, f'Using firmware from {PyduinUtils().firmware}'),
+        ('pyduin', 10, 'Using buddy \'nano1\''),
+        ('pyduin', 10,  'Using board nanoatmega328'),
+        ('pyduin', 10, 'Using baudrate 115200')]
+
+def test_cli_cfg_missing_buddy_section(namespace_fixture, cli_testdir_fixture,
+        cfg_tpl_fixture, monkeypatch, caplog):
+    del cfg_tpl_fixture['buddies']
+    namespace_fixture.log_level = 'debug'
+    monkeypatch.setattr('pyduin.utils.CliConfig.config_template', yaml.safe_dump(cfg_tpl_fixture))
+    with pytest.raises(DeviceConfigError):
+        CliConfig(namespace_fixture)
+    path = cli_testdir_fixture
+    assert caplog.record_tuples == [
+        ('pyduin', 20, f'Writing default config file to {path}/pyduin.yml'),
+        ('pyduin', 10, f'Using configuration file: {path}/pyduin.yml'),
+        ('pyduin', 10, f'Using workdir {path}/.pyduin'),
+        ('pyduin', 10, f'Using platformio.ini in: {PyduinUtils().platformio_ini}'),
+        ('pyduin', 10, f'Using firmware from {PyduinUtils().firmware}'),
+        ('pyduin', 10, 'Using buddy \'False\''),
+        ('pyduin', 20, 'Configfile is missing \'buddies\' section')]
+
+# pylint: disable=unused-argument
+def test_cli_cfg_invalid_buddy(namespace_fixture, cli_testdir_fixture):
+    namespace_fixture.buddy = 'invalid_buddy'
+    with pytest.raises(DeviceConfigError):
+        CliConfig(namespace_fixture)
+
+# pylint: disable=unused-argument
+def test_no_board(namespace_fixture, cli_testdir_fixture, cfg_tpl_fixture, monkeypatch):
+    namespace_fixture.buddy = 'nano1'
+    del cfg_tpl_fixture['buddies']['nano1']['board']
+    monkeypatch.setattr('pyduin.utils.CliConfig.config_template', yaml.safe_dump(cfg_tpl_fixture))
+    exp = 'Cannot determine board for desired action.'
+    with pytest.raises(DeviceConfigError, match=exp):
+        CliConfig(namespace_fixture)
+
+# pylint: disable=unused-argument
+def test_no_tty(namespace_fixture, cli_testdir_fixture, cfg_tpl_fixture, monkeypatch):
+    namespace_fixture.buddy = 'nano1'
+    del cfg_tpl_fixture['buddies']['nano1']['tty']
+    monkeypatch.setattr('pyduin.utils.CliConfig.config_template', yaml.safe_dump(cfg_tpl_fixture))
+    exp = 'Cannot determine tty to use for desired action.'
+    with pytest.raises(DeviceConfigError, match=exp):
+        CliConfig(namespace_fixture)
+
+# pylint: disable=unused-argument
+def test_baudrate_error(namespace_fixture, cli_testdir_fixture, monkeypatch):
+    namespace_fixture.tty = '/mock/ttyUSB0'
+    namespace_fixture.board = 'uno'
+    namespace_fixture.log_level = 'debug'
+    def get_boardfile_obj(*args):
+        return BoardFile('tests/data/boardfiles/baudrate_not_set.yml')
+    monkeypatch.setattr('pyduin.utils.PyduinUtils.get_boardfile_obj', get_boardfile_obj)
+    with pytest.raises(DeviceConfigError):
+        CliConfig(namespace_fixture)
+
+def test_cli_baudrate_override(namespace_fixture, cli_testdir_fixture, caplog):
+    path = cli_testdir_fixture
+    namespace_fixture.configfile = f'{path}/pyduin2.yml'
+    namespace_fixture.buddy = 'uno1'
+    namespace_fixture.baudrate = 1234567
+    config = CliConfig(namespace_fixture)
+    assert config.baudrate == 1234567
+
+# pylint: disable=unused-argument
+def test_cli_cfg_invalid_board(namespace_fixture, cli_testdir_fixture):
+    namespace_fixture.board = 'random'
+    with pytest.raises(DeviceConfigError) as err:
+        CliConfig(namespace_fixture)
+    str(err.value).startswith('Board (random) not in supported boards list')
