@@ -41,13 +41,18 @@ def test_cli_invalid_choice(cli_runner, script_runner):
 
 def test_no_board(cli_runner, script_runner, tmp_path):
     path = f'{tmp_path}/pyduin.yml'
+    cfg = """
+    buddies:
+      foo:
+        tty: /foo/bar
+    """
     with open(f'{path}', 'w', encoding='utf-8') as cfile:
-        cfile.write("invalid: template")
-    with pytest.raises(DeviceConfigError) as err:
-        script_runner.run(f'pyduin --tty /foo/bar -c {path}', shell=True)
-    assert str(err.value) == "Cannot determine board for desired action."
+        cfile.write(cfg)
+    #with pytest.raises(DeviceConfigError) as err:
+    result = script_runner.run(f'pyduin -c {path}', shell=True)
+    assert result.stdout == "Nothing to do\n"
 
 def test_invalid_board(cli_runner, script_runner):
     with pytest.raises(DeviceConfigError) as err:
-        script_runner.run('pyduin --board=nixexista', shell=True)
+        script_runner.run('pyduin -b nixexista versions', shell=True)
     assert str(err.value).startswith('Board (nixexista) not in supported boards list')

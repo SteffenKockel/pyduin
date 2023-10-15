@@ -135,6 +135,13 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
     digitalpin_parser_pwm.add_argument('value', type=int, help='0-255')
 
     args = parser.parse_args()
+    if args.cmd == "dependencies":
+        utils.dependencies()
+        sys.exit(0)
+    if not args.cmd:
+        print("Nothing to do")
+        sys.exit(1)
+
     config = CliConfig(args)
     log_level = args.log_level or config.log_level
     logger.setLevel(level=getattr(logging, log_level.upper()))
@@ -144,9 +151,6 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
 
     if args.cmd in ('versions', 'v'):
         print(versions(arduino, config.workdir))
-        sys.exit(0)
-    elif args.cmd == "dependencies":
-        utils.dependencies()
         sys.exit(0)
     elif args.cmd in ('free', 'f'):
         print(arduino.free_memory)
@@ -196,9 +200,6 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
             res = pin.read()
             print(res.split('%')[-1])
         sys.exit(0)
-    else:
-        print("Nothing to do")
-        sys.exit(1)
     sys.exit(0)
 if __name__ == '__main__':
     main()

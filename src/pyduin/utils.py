@@ -33,9 +33,7 @@ buddies:
 
 
 class DeviceConfigError(BaseException):
-    """
-        Error Class to throw on config errors
-    """
+    """ Error Class to throw on config errors """
 
 class BuildEnvError(BaseException):
     """ Error class to be thrown on errors in the build environment """
