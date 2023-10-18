@@ -19,28 +19,6 @@ from pyduin.utils import CliConfig
 logger = utils.logger()
 
 
-def get_arduino(config):
-    """
-        Get an arduino object, open the serial connection if it is the first connection
-        or wait=True (socat off/unavailable) and return it. To circumvent restarts of
-        the arduino on reconnect, one has two options
-
-        * Start a socat proxy
-        * Do not hang_up_on close
-    """
-    # if config['serial']['hang_up_on_close'] and config['serial']['use_socat']:
-    #     errmsg = "Will not handle 'use_socat:yes' in conjunction with 'hang_up_on_close:no'" \
-    #              "Either set 'use_socat' to 'no' or 'hang_up_on_close' to 'yes'."
-    #     raise DeviceConfigError(errmsg)
-
-    # aconfig = config['_arduino_']
-    # socat = False
-    # if config['serial']['use_socat'] and getattr(args, 'fwcmd', '') not in ('flash', 'f'):
-    #     socat = SocatProxy(aconfig['tty'], aconfig['baudrate'], log_level=args.log_level)
-    #     socat.start()
-    arduino = Arduino(**config)
-    return arduino
-
 def prepare_buildenv(arduino, config, args):
     """ Idempotent function that ensures the platformio build env exists and contains
     the required files in the wanted state. """
@@ -145,7 +123,7 @@ def main(): # pylint: disable=too-many-locals,too-many-statements,too-many-branc
     config = CliConfig(args)
     log_level = args.log_level or config.log_level
     logger.setLevel(level=getattr(logging, log_level.upper()))
-    arduino = get_arduino(config.arduino_config)
+    arduino = Arduino(**config.arduino_config)
 
     prepare_buildenv(arduino, config, args)
 

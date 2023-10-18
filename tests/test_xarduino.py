@@ -73,6 +73,7 @@ def test_free_memory(device_fixture):
 def test_close_serial_connection(device_fixture):
     assert not device_fixture.close_serial_connection()
 
-def test_socat_on(device_fixture_socat_on):
+# pylint: disable=unused-argument
+def test_socat_on(device_fixture_socat_on, subprocess_fixture):
     assert isinstance(device_fixture_socat_on.socat, pyduin.utils.SocatProxy)
     assert device_fixture_socat_on.open_serial_connection()
